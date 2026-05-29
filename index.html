@@ -101,9 +101,19 @@
     </section>
 
     <section id="poker" class="panel">
-      <div class="poker-table">
+      <div class="poker-table" id="pokerTable">
+        <div class="poker-table-glow" aria-hidden="true"></div>
+        <div class="poker-chips" aria-hidden="true">
+          <span class="poker-chip red"></span>
+          <span class="poker-chip gold"></span>
+          <span class="poker-chip purple"></span>
+        </div>
         <div class="poker-top">◆ AURA POKER ◆</div>
+        <div class="poker-hand-dots" id="pokerDots" aria-hidden="true">
+          <span></span><span></span><span></span><span></span><span></span>
+        </div>
         <p id="pokerHands" class="score">Раздача 0 / 5</p>
+        <div id="pokerCombo" class="poker-combo" hidden></div>
         <div id="pokerCards" class="poker-cards" aria-label="Ваши карты"></div>
         <p id="pokerStatus" class="status-badge">Нажмите «Раздать»</p>
         <button type="button" id="pokerDealBtn" class="btn poker-deal-btn">🃏 Раздать</button>
