@@ -2,46 +2,79 @@
 <html lang="ru">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+  <meta name="theme-color" content="#0a0618" />
   <title>Aura Games</title>
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
+  <div id="particles" class="particles" aria-hidden="true"></div>
+
   <header class="hdr">
     <h1>✨ Aura Games</h1>
-    <p id="balance">Очки ауры — в боте</p>
+    <p id="balance">Мистические игры за очки ауры</p>
   </header>
-  <nav class="tabs">
-    <button type="button" data-tab="snake" class="active">🐍</button>
-    <button type="button" data-tab="crystals">💎</button>
-    <button type="button" data-tab="slots">🎰</button>
+
+  <nav class="tabs" aria-label="Игры">
+    <button type="button" data-tab="snake" class="active">
+      <span class="tab-icon">🐍</span>
+      <span class="tab-label">Змейка</span>
+    </button>
+    <button type="button" data-tab="crystals">
+      <span class="tab-icon">💎</span>
+      <span class="tab-label">Кристаллы</span>
+    </button>
+    <button type="button" data-tab="slots">
+      <span class="tab-icon">🎰</span>
+      <span class="tab-label">Слоты</span>
+    </button>
   </nav>
+
   <main>
     <section id="snake" class="panel active">
-      <canvas id="snakeCanvas" width="288" height="288"></canvas>
-      <p class="hint">Свайп или стрелки · 6 ✨ = победа</p>
-      <p id="snakeScore" class="score">0 / 6</p>
-    </section>
-    <section id="crystals" class="panel">
-      <canvas id="crystalsCanvas" width="288" height="288"></canvas>
-      <p class="hint">Тапни две соседние клетки · 20 очков = победа</p>
-      <p id="crystalsScore" class="score">0 / 20</p>
-    </section>
-    <section id="slots" class="panel">
-      <div class="reels" id="reels">
-        <div class="reel">?</div>
-        <div class="reel">?</div>
-        <div class="reel">?</div>
+      <div class="game-frame">
+        <canvas id="snakeCanvas" width="320" height="320"></canvas>
       </div>
-      <button type="button" id="spinBtn" class="btn">Крутить</button>
-      <p id="slotsMsg" class="hint"></p>
+      <div class="progress-wrap" aria-hidden="true">
+        <div id="snakeProgress" class="progress-bar"></div>
+      </div>
+      <p id="snakeScore" class="score">0 / 6 ✨</p>
+      <p id="snakeStatus" class="status-badge">Свайп или стрелки</p>
+      <p class="hint">Соберите 6 звёзд · не врежьтесь в стены</p>
+    </section>
+
+    <section id="crystals" class="panel">
+      <div class="game-frame">
+        <canvas id="crystalsCanvas" width="320" height="320"></canvas>
+      </div>
+      <div class="progress-wrap">
+        <div id="crystalsProgress" class="progress-bar"></div>
+      </div>
+      <p id="crystalsScore" class="score">0 / 20</p>
+      <p id="crystalsStatus" class="status-badge">Тап: две соседние клетки</p>
+      <p class="hint">Соберите 3 в ряд · 20 очков = победа</p>
+    </section>
+
+    <section id="slots" class="panel">
+      <div class="slots-machine">
+        <div class="slots-top">◆ AURA CASINO ◆</div>
+        <div class="reels" id="reels">
+          <div class="reel-wrap"><div class="reel" data-reel="0"><div class="reel-cell">?</div></div></div>
+          <div class="reel-wrap"><div class="reel" data-reel="1"><div class="reel-cell">?</div></div></div>
+          <div class="reel-wrap"><div class="reel" data-reel="2"><div class="reel-cell">?</div></div></div>
+        </div>
+        <button type="button" id="spinBtn" class="btn">🎰 Крутить</button>
+        <p id="slotsMsg" class="hint"></p>
+      </div>
     </section>
   </main>
+
   <footer>
     <button type="button" id="sendResult" class="btn primary" disabled>Отправить результат в бот</button>
-    <p class="hint small">Награда начисляется в чате Aura (лимит партий в сутки).</p>
+    <p class="hint small">Награда начисляется в чате Aura · лимит партий в сутки</p>
   </footer>
+
   <script src="app.js"></script>
 </body>
 </html>
