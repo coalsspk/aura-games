@@ -483,6 +483,56 @@ body::after {
   background: #0a0a0a;
 }
 
+.game-frame.minigame-running .snake-start-btn,
+.game-frame.tanks-running .snake-start-btn {
+  display: none;
+}
+
+.minigame-frame canvas {
+  display: block;
+  border-radius: 12px;
+  touch-action: none;
+  cursor: pointer;
+}
+
+.minigame-controls {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+  max-width: min(340px, 96vw);
+  margin: 8px auto 4px;
+  padding: 8px;
+  border-radius: 14px;
+  background: rgba(12, 8, 28, 0.95);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  touch-action: manipulation;
+}
+
+.minigame-pad {
+  flex: 1;
+  min-height: 48px;
+  border: none;
+  border-radius: 12px;
+  background: linear-gradient(180deg, rgba(70, 75, 90, 0.95), rgba(35, 38, 50, 0.98));
+  color: var(--text);
+  font-size: 1.2rem;
+  font-weight: 700;
+  touch-action: manipulation;
+  user-select: none;
+}
+
+.minigame-pad-main {
+  background: linear-gradient(180deg, #e85030, #a82818);
+  color: #fff;
+  font-size: 1.1rem;
+}
+
+.minigame-pad:active,
+.minigame-pad.minigame-pad-active {
+  transform: translateY(3px);
+  filter: brightness(1.1);
+}
+
 .game-frame.tanks-running .snake-start-btn {
   display: none;
 }

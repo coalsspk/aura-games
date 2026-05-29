@@ -38,8 +38,8 @@
       document.getElementById("library")?.classList.remove("active");
       const back = document.getElementById("libraryBackBar");
       if (back) back.hidden = false;
-      if (panel.id === "minigame" && window.MiniGames?.start) {
-        window.MiniGames.start(id);
+      if (panel.id === "minigame" && window.MiniGames?.show) {
+        window.MiniGames.show(id);
       }
     }
   }
