@@ -597,7 +597,8 @@
   }
 
   function updatePlayer() {
-    if (!playing || gameOver || !player?.alive) return;
+    if (!playing || gameOver) return;
+    if (!player?.alive) return;
     if (player.invuln > 0) player.invuln--;
     if (player.shootCd > 0) player.shootCd--;
     const speed = 1.8;
@@ -819,10 +820,16 @@
     ctx.fillText("14 ✨ · база цела 18 ✨", W / 2, H / 2 + 10);
   }
 
+  function isTanksTab() {
+    const tab = window.activeTab ?? activeTab;
+    if (tab === "tanks") return true;
+    return document.getElementById("tanks")?.classList.contains("active") === true;
+  }
+
   function loop(t) {
     animTime = t;
-    if (activeTab === "tanks" && playing && !gameOver) update();
-    if (activeTab === "tanks") {
+    if (playing && !gameOver) update();
+    if (isTanksTab()) {
       draw();
       drawOverlay();
     }
@@ -837,62 +844,123 @@
     else if (code === "fire") input.fire = down;
   }
 
-  document.querySelectorAll("[data-tanks]").forEach((btn) => {
-    const action = btn.dataset.tanks;
-    let touchFromPointer = false;
+  function bindTanksControls() {
+    const root = document.getElementById("tanks");
+    if (!root) return;
 
-    const down = (e) => {
-      if (e.cancelable) e.preventDefault();
-      e.stopPropagation();
-      btn.classList.add("tanks-pad-active");
+    const held = new Map();
+    const pointerAction = new Map();
+
+    function actionFromEvent(e) {
+      const btn = e.target.closest?.("[data-tanks]");
+      return btn?.dataset?.tanks || null;
+    }
+
+    function press(action, btn) {
+      if (!action) return;
+      held.set(action, (held.get(action) || 0) + 1);
       setKey(action, true);
-    };
-    const up = (e) => {
-      if (e.cancelable) e.preventDefault();
-      e.stopPropagation();
-      btn.classList.remove("tanks-pad-active");
-      setKey(action, false);
-    };
+      btn?.classList.add("tanks-pad-active");
+      if (!playing && !mapLoading && !gameOver) {
+        setMapStatus("Нажмите «Старт» над полем");
+      }
+    }
 
-    btn.addEventListener("pointerdown", (e) => {
-      touchFromPointer = true;
-      if (btn.setPointerCapture) btn.setPointerCapture(e.pointerId);
-      down(e);
-    });
-    btn.addEventListener("pointerup", up);
-    btn.addEventListener("pointercancel", up);
-    btn.addEventListener("lostpointercapture", up);
-    btn.addEventListener("pointerleave", (e) => {
-      if (e.pointerType === "mouse" && e.buttons === 0) up(e);
-    });
-    btn.addEventListener(
-      "touchstart",
+    function release(action) {
+      if (!action) return;
+      const n = (held.get(action) || 0) - 1;
+      if (n <= 0) {
+        held.delete(action);
+        setKey(action, false);
+        root.querySelectorAll(`[data-tanks="${action}"]`).forEach((b) => {
+          b.classList.remove("tanks-pad-active");
+        });
+      } else {
+        held.set(action, n);
+      }
+    }
+
+    function releasePointer(e) {
+      const action = pointerAction.get(e.pointerId) || actionFromEvent(e);
+      pointerAction.delete(e.pointerId);
+      if (action) release(action);
+    }
+
+    function releaseAll() {
+      pointerAction.clear();
+      held.clear();
+      clearInput();
+    }
+
+    root.addEventListener(
+      "pointerdown",
       (e) => {
-        if (touchFromPointer) return;
-        down(e);
-      },
-      { passive: false }
-    );
-    btn.addEventListener(
-      "touchend",
-      (e) => {
-        if (touchFromPointer) {
-          touchFromPointer = false;
-          return;
+        const action = actionFromEvent(e);
+        if (!action) return;
+        if (e.cancelable) e.preventDefault();
+        pointerAction.set(e.pointerId, action);
+        const btn = e.target.closest("[data-tanks]");
+        if (btn?.setPointerCapture) {
+          try {
+            btn.setPointerCapture(e.pointerId);
+          } catch {
+            /* ignore */
+          }
         }
-        up(e);
+        press(action, btn);
       },
       { passive: false }
     );
-    btn.addEventListener(
-      "touchcancel",
+
+    root.addEventListener(
+      "pointerup",
       (e) => {
-        touchFromPointer = false;
-        up(e);
+        releasePointer(e);
       },
       { passive: false }
     );
-  });
+
+    root.addEventListener(
+      "pointercancel",
+      (e) => {
+        releasePointer(e);
+      },
+      { passive: false }
+    );
+
+    root.addEventListener(
+      "lostpointercapture",
+      (e) => {
+        releasePointer(e);
+      },
+      { passive: false }
+    );
+
+    if (!window.PointerEvent) {
+      root.addEventListener(
+        "touchstart",
+        (e) => {
+          const action = actionFromEvent(e);
+          if (!action) return;
+          if (e.cancelable) e.preventDefault();
+          press(action, e.target.closest("[data-tanks]"));
+        },
+        { passive: false }
+      );
+      root.addEventListener(
+        "touchend",
+        (e) => {
+          const action = actionFromEvent(e);
+          if (action) release(action);
+          else if (held.size > 0) releaseAll();
+        },
+        { passive: false }
+      );
+      root.addEventListener("touchcancel", releaseAll, { passive: false });
+    }
+  }
+
+  bindTanksControls();
 
   document.addEventListener("visibilitychange", () => {
     if (document.hidden) clearInput();
@@ -900,7 +968,7 @@
   window.addEventListener("blur", clearInput);
 
   document.addEventListener("keydown", (e) => {
-    if (activeTab !== "tanks") return;
+    if (!isTanksTab()) return;
     if (e.key === "ArrowUp") setKey("up", true);
     if (e.key === "ArrowDown") setKey("down", true);
     if (e.key === "ArrowLeft") setKey("left", true);
@@ -908,7 +976,7 @@
     if (e.key === " " || e.key === "z") setKey("fire", true);
   });
   document.addEventListener("keyup", (e) => {
-    if (activeTab !== "tanks") return;
+    if (!isTanksTab()) return;
     if (e.key === "ArrowUp") setKey("up", false);
     if (e.key === "ArrowDown") setKey("down", false);
     if (e.key === "ArrowLeft") setKey("left", false);

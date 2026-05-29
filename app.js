@@ -28,7 +28,8 @@ const CRYSTALS_MAX_SWAPS = 12;
 const MARIO_AURA_RATIO = 100;
 
 let lastResult = null;
-let activeTab = "snake";
+var activeTab = "snake";
+window.activeTab = activeTab;
 let slotsSpins = 0;
 let slotsBusy = false;
 
@@ -93,6 +94,7 @@ document.querySelectorAll(".tabs button").forEach((btn) => {
     document.querySelectorAll(".panel").forEach((p) => p.classList.remove("active"));
     btn.classList.add("active");
     activeTab = btn.dataset.tab;
+    window.activeTab = activeTab;
     document.getElementById(activeTab).classList.add("active");
   });
 });
