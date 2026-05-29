@@ -14,7 +14,7 @@
   const MAX_ON_FIELD = 4;
   const SPAWN_CD = 180;
 
-  const LEVEL = [
+  const DEFAULT_LEVEL = [
     "#############",
     "#...........#",
     "#.##.###.##.#",
@@ -29,6 +29,10 @@
     "####.###.####",
     "#####.#B#####",
   ];
+
+  let levelRows = [...DEFAULT_LEVEL];
+  let mapSource = "builtin";
+  let mapLoading = false;
 
   const keys = { up: false, down: false, left: false, right: false, fire: false };
   let dpr = 1;
@@ -69,11 +73,88 @@
     ctx.imageSmoothingEnabled = false;
   }
 
+  function proceduralMapClient(seed) {
+    const rng = (() => {
+      let s = seed >>> 0;
+      return () => {
+        s = (s + 0x6d2b79f5) | 0;
+        let t = Math.imul(s ^ (s >>> 15), 1 | s);
+        t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+        return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+      };
+    })();
+    const rows = Array.from({ length: TH }, () => Array(TW).fill("."));
+    for (let x = 0; x < TW; x++) {
+      rows[0][x] = "#";
+      rows[TH - 1][x] = "#";
+    }
+    for (let y = 0; y < TH; y++) {
+      rows[y][0] = "#";
+      rows[y][TW - 1] = "#";
+    }
+    const bx = Math.floor(TW / 2);
+    rows[TH - 1][bx] = "B";
+    for (const dx of [-1, 0, 1]) {
+      if (bx + dx > 0 && bx + dx < TW - 1) rows[TH - 2][bx + dx] = "#";
+    }
+    const blocks = 8 + Math.floor(rng() * 7);
+    for (let n = 0; n < blocks; n++) {
+      const x = 1 + Math.floor(rng() * (TW - 4));
+      const y = 2 + Math.floor(rng() * (TH - 5));
+      const w = 2 + Math.floor(rng() * 3);
+      for (let i = 0; i < w; i++) {
+        if (x + i < TW - 1) rows[y][x + i] = rng() < 0.75 ? "#" : "@";
+      }
+    }
+    if (rng() < 0.45) {
+      const wx = 2 + Math.floor(rng() * (TW - 5));
+      const wy = 4 + Math.floor(rng() * (TH - 7));
+      rows[wy][wx] = "~";
+    }
+    rows[11][3] = ".";
+    rows[11][4] = ".";
+    return rows.map((r) => r.join(""));
+  }
+
+  function setMapRows(rows, source) {
+    if (Array.isArray(rows) && rows.length === TH) {
+      levelRows = rows.map((line) => String(line).slice(0, TW).padEnd(TW, "."));
+      mapSource = source || "random";
+    }
+  }
+
+  function setMapStatus(text) {
+    const el = document.getElementById("tanksMapLabel");
+    if (el) el.textContent = text;
+  }
+
+  async function fetchLevelMap() {
+    setMapStatus("Карта: загрузка…");
+    try {
+      const res = await fetch("/api/tanks-map", { cache: "no-store" });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.rows && data.rows.length === TH) {
+          setMapRows(data.rows, data.source === "deepseek" ? "deepseek" : "random");
+          setMapStatus(
+            data.source === "deepseek" ? "Карта: ✨ DeepSeek" : "Карта: случайная"
+          );
+          return;
+        }
+      }
+    } catch {
+      /* локальный сервер без API — fallback */
+    }
+    const seed = Date.now() % 2000000000;
+    setMapRows(proceduralMapClient(seed), "random");
+    setMapStatus("Карта: случайная");
+  }
+
   function parseLevel() {
     map = [];
     for (let y = 0; y < TH; y++) {
       const row = [];
-      const line = LEVEL[y] || "";
+      const line = levelRows[y] || "";
       for (let x = 0; x < TW; x++) {
         const ch = line[x] || ".";
         if (ch === "#") row.push(1);
@@ -185,12 +266,20 @@
     setProgress("tanksProgress", ENEMY_TOTAL - enemiesLeft - onField, ENEMY_TOTAL);
   }
 
-  function startGame(e) {
+  async function startGame(e) {
     const now = Date.now();
     if (now - lastStartAt < 400) return;
     if (playing && !gameOver) return;
+    if (mapLoading) return;
     lastStartAt = now;
     if (e?.cancelable) e.preventDefault();
+    mapLoading = true;
+    if (startBtn) {
+      startBtn.disabled = true;
+      startBtn.textContent = "Карта…";
+    }
+    await fetchLevelMap();
+    mapLoading = false;
     resetGame();
     playing = true;
     frame?.classList.add("tanks-running");

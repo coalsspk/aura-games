@@ -28,7 +28,7 @@ body {
   background: var(--bg-deep);
   color: var(--text);
   min-height: 100vh;
-  padding: 10px 12px 20px;
+  padding: 6px 8px 12px;
   position: relative;
 }
 
@@ -74,6 +74,10 @@ body::after {
   padding: 8px 0 4px;
 }
 
+.hdr-compact {
+  padding: 4px 0 2px;
+}
+
 .hdr h1 {
   font-size: 1.35rem;
   font-weight: 700;
@@ -83,6 +87,10 @@ body::after {
   color: transparent;
   letter-spacing: 0.02em;
   text-shadow: 0 0 24px rgba(255, 210, 80, 0.25);
+}
+
+.hdr-compact h1 {
+  font-size: 1.05rem;
 }
 
 .hdr p {
@@ -96,6 +104,21 @@ body::after {
   flex-wrap: wrap;
   gap: 8px;
   margin: 12px 0;
+}
+
+.tabs-compact {
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  overflow-y: hidden;
+  gap: 5px;
+  margin: 4px 0 6px;
+  padding: 2px 2px 4px;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+
+.tabs-compact::-webkit-scrollbar {
+  display: none;
 }
 
 .tabs button {
@@ -114,9 +137,20 @@ body::after {
   gap: 2px;
 }
 
+.tabs-compact button {
+  flex: 0 0 auto;
+  min-width: 48px;
+  padding: 5px 7px 4px;
+  border-radius: 10px;
+}
+
 .tabs button .tab-icon {
   font-size: 1.5rem;
   line-height: 1;
+}
+
+.tabs-compact button .tab-icon {
+  font-size: 1.15rem;
 }
 
 .tabs button .tab-label {
@@ -124,6 +158,12 @@ body::after {
   text-transform: uppercase;
   letter-spacing: 0.06em;
   opacity: 0.7;
+}
+
+.tabs-compact button .tab-label {
+  font-size: 0.48rem;
+  letter-spacing: 0.03em;
+  line-height: 1.1;
 }
 
 .tabs button.active {
@@ -308,27 +348,36 @@ body::after {
   display: none;
 }
 
+.tanks-map-label {
+  font-size: 0.68rem;
+  opacity: 0.75;
+  margin: 2px 0 0;
+  color: var(--gold);
+}
+
+.hint-tight {
+  margin: 4px 8px 6px;
+  font-size: 0.72rem;
+}
+
 #tanks .tanks-controls {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 6px;
   width: 100%;
-  max-width: min(360px, 96vw);
-  margin: 12px auto 8px;
-  padding: 12px 10px max(14px, env(safe-area-inset-bottom));
-  border-radius: 18px;
-  background: rgba(12, 8, 28, 0.88);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  box-shadow: 0 -4px 24px rgba(0, 0, 0, 0.35);
-  position: sticky;
-  bottom: 0;
-  z-index: 20;
+  max-width: min(340px, 96vw);
+  margin: 6px auto 4px;
+  padding: 8px 8px 10px;
+  border-radius: 14px;
+  background: rgba(12, 8, 28, 0.9);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.3);
   -webkit-tap-highlight-color: transparent;
 }
 
 .tanks-controls-row {
   display: flex;
-  gap: 10px;
+  gap: 6px;
   width: 100%;
 }
 
@@ -338,48 +387,49 @@ body::after {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 4px;
-  min-height: 64px;
+  gap: 2px;
+  min-height: 44px;
   border: none;
-  border-radius: 16px;
+  border-radius: 12px;
   background: linear-gradient(180deg, rgba(70, 75, 90, 0.95), rgba(35, 38, 50, 0.98));
   color: var(--text);
   cursor: pointer;
   touch-action: manipulation;
-  box-shadow: 0 5px 0 rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  box-shadow: 0 3px 0 rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.1);
   user-select: none;
+  padding: 4px 2px;
 }
 
 .tanks-pad-icon {
-  font-size: clamp(1.6rem, 7vw, 2.2rem);
+  font-size: 1.25rem;
   line-height: 1;
   pointer-events: none;
 }
 
 .tanks-pad-label {
-  font-size: clamp(0.65rem, 2.8vw, 0.78rem);
+  font-size: 0.55rem;
   font-weight: 600;
   text-transform: uppercase;
-  letter-spacing: 0.04em;
-  opacity: 0.9;
+  letter-spacing: 0.03em;
+  opacity: 0.85;
   pointer-events: none;
 }
 
 .tanks-pad-up,
 .tanks-pad-down {
   width: 100%;
-  min-height: 56px;
+  min-height: 40px;
 }
 
 .tanks-pad-fire {
-  min-height: 76px;
+  min-height: 48px;
   background: linear-gradient(180deg, #e85030 0%, #a82818 100%);
   color: #fff8f0;
-  box-shadow: 0 5px 0 #6b1810, inset 0 1px 0 rgba(255, 255, 255, 0.25);
+  box-shadow: 0 3px 0 #6b1810, inset 0 1px 0 rgba(255, 255, 255, 0.25);
 }
 
 .tanks-pad-dir {
-  min-height: 72px;
+  min-height: 46px;
 }
 
 .tanks-pad:active,
