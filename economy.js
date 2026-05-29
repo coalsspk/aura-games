@@ -45,11 +45,14 @@
   }
 
   function save() {
-    try {
-      localStorage.setItem(STORAGE_KEY, String(balance));
-    } catch {
-      /* ignore */
-    }
+    if (save._t) clearTimeout(save._t);
+    save._t = setTimeout(() => {
+      try {
+        localStorage.setItem(STORAGE_KEY, String(balance));
+      } catch {
+        /* ignore */
+      }
+    }, 280);
   }
 
   function format(n) {

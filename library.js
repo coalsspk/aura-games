@@ -41,6 +41,8 @@
       if (panel.id === "minigame" && window.MiniGames?.show) {
         window.MiniGames.show(id);
       }
+      window.AuraEngine?.wakeTab?.("minigame");
+      window.AuraEngine?.wakeTab?.(id);
     }
   }
 

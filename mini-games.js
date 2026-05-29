@@ -973,15 +973,14 @@
   }
 
   let last = 0;
-  function loop(ts) {
+  function miniLoop(ts) {
     const dt = last ? Math.min(48, ts - last) : 16;
     last = ts;
     animT = ts;
-    if (document.getElementById("minigame")?.classList.contains("active") && gameId) {
+    if (gameId && window.AuraEngine?.isPanelActive?.("minigame")) {
       update(dt);
       draw();
     }
-    requestAnimationFrame(loop);
   }
 
   startBtn?.addEventListener("click", (e) => {
@@ -999,8 +998,20 @@
 
   bindInput();
   setupCanvas();
-  window.addEventListener("resize", setupCanvas);
-  requestAnimationFrame(loop);
+  const onMiniResize = window.AuraEngine?.debounce
+    ? window.AuraEngine.debounce(setupCanvas)
+    : setupCanvas;
+  window.addEventListener("resize", onMiniResize);
+  if (window.AuraEngine?.createTabLoop) {
+    window.AuraEngine.createTabLoop("minigame", miniLoop, {
+      match: () => window.AuraEngine.isPanelActive("minigame") && !!gameId,
+    });
+  } else {
+    requestAnimationFrame(function loop(ts) {
+      miniLoop(ts);
+      requestAnimationFrame(loop);
+    });
+  }
 
   window.MiniGames = {
     show(id) {

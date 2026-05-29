@@ -292,6 +292,11 @@ body::after {
   display: block;
 }
 
+.panel:not(.active) {
+  content-visibility: hidden;
+  contain-intrinsic-size: auto 480px;
+}
+
 @keyframes fadeIn {
   from {
     opacity: 0;

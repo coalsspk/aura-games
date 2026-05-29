@@ -67,7 +67,7 @@
   let enemySpawnSlot = 0;
 
   function setupCanvas() {
-    dpr = Math.min(window.devicePixelRatio || 1, 2);
+    dpr = Math.min(window.devicePixelRatio || 1, 1.75);
     const maxW = Math.min(360, Math.floor(window.innerWidth * 0.96));
     viewScale = maxW / W;
     const viewH = H * viewScale;
@@ -826,14 +826,13 @@
     return document.getElementById("tanks")?.classList.contains("active") === true;
   }
 
-  function loop(t) {
+  function tanksLoop(t) {
     animTime = t;
-    if (playing && !gameOver) update();
+    if (playing && !gameOver && isTanksTab()) update();
     if (isTanksTab()) {
       draw();
       drawOverlay();
     }
-    requestAnimationFrame(loop);
   }
 
   function setKey(code, down) {
@@ -1016,6 +1015,16 @@
       }
     });
   }
-  window.addEventListener("resize", setupCanvas);
-  requestAnimationFrame(loop);
+  const onTanksResize = window.AuraEngine?.debounce
+    ? window.AuraEngine.debounce(setupCanvas)
+    : setupCanvas;
+  window.addEventListener("resize", onTanksResize);
+  if (window.AuraEngine?.createTabLoop) {
+    window.AuraEngine.createTabLoop("tanks", tanksLoop);
+  } else {
+    requestAnimationFrame(function loop(t) {
+      tanksLoop(t);
+      requestAnimationFrame(loop);
+    });
+  }
 })();

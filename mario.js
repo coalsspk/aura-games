@@ -89,7 +89,16 @@
   }
 
   function setupMarioCanvas() {
-    dpr = Math.min(window.devicePixelRatio || 1, 2);
+    const r = window.AuraEngine?.setupCanvas
+      ? window.AuraEngine.setupCanvas(canvas, { maxSize: 360, aspect: 0.72, pixelated: false })
+      : null;
+    if (r) {
+      viewW = r.w;
+      viewH = r.h;
+      ctx = r.ctx;
+      return;
+    }
+    dpr = Math.min(window.devicePixelRatio || 1, 1.75);
     viewW = Math.min(360, Math.floor(window.innerWidth * 0.96));
     viewH = Math.floor(viewW * 0.72);
     canvas.style.width = `${viewW}px`;
@@ -1009,12 +1018,7 @@
     ctx.fillText("🍄", viewW / 2, viewH / 2 - 42);
   }
 
-  function loop(t) {
-    if (activeTab !== "mario") {
-      requestAnimationFrame(loop);
-      return;
-    }
-
+  function marioLoop(t) {
     animTime = t;
     drawBackground(t);
     if (level) {
@@ -1034,13 +1038,11 @@
       if (levelClearTimer <= 0) movePlayer();
       updateEnemies();
       updateCamera();
-      updateParticles();
+      if (particles.length) updateParticles();
       updateHud();
-    } else {
+    } else if (particles.length) {
       updateParticles();
     }
-
-    requestAnimationFrame(loop);
   }
 
   function setKey(code, down) {
@@ -1146,6 +1148,16 @@
       setLevelStatus(`Превью: уровень ${n} / ${MARIO_LEVEL_COUNT}`);
     });
   }
-  window.addEventListener("resize", setupMarioCanvas);
-  requestAnimationFrame(loop);
+  const onMarioResize = window.AuraEngine?.debounce
+    ? window.AuraEngine.debounce(setupMarioCanvas)
+    : setupMarioCanvas;
+  window.addEventListener("resize", onMarioResize);
+  if (window.AuraEngine?.createTabLoop) {
+    window.AuraEngine.createTabLoop("mario", marioLoop);
+  } else {
+    requestAnimationFrame(function loop(t) {
+      marioLoop(t);
+      requestAnimationFrame(loop);
+    });
+  }
 })();

@@ -48,6 +48,8 @@ document.querySelectorAll(".tabs button").forEach((btn) => {
     const back = document.getElementById("libraryBackBar");
     if (back) back.hidden = activeTab === "library";
     if (activeTab === "library" && typeof goAuraLibrary === "function") goAuraLibrary();
+    window.AuraEngine?.wakeTab?.(activeTab);
+    window.AuraEngine?.wakeTab?.("minigame");
   });
 });
 
@@ -59,21 +61,24 @@ function setProgress(id, value, max) {
 function burstParticles(count) {
   const root = document.getElementById("particles");
   if (!root) return;
+  const n = Math.min(count, 18);
   const cx = window.innerWidth / 2;
   const cy = window.innerHeight / 2;
-  for (let i = 0; i < count; i++) {
+  const frag = document.createDocumentFragment();
+  for (let i = 0; i < n; i++) {
     const p = document.createElement("div");
     p.className = "particle";
-    const ang = (Math.PI * 2 * i) / count + Math.random();
-    const dist = 60 + Math.random() * 120;
+    const ang = (Math.PI * 2 * i) / n + Math.random();
+    const dist = 50 + Math.random() * 90;
     p.style.left = `${cx}px`;
     p.style.top = `${cy}px`;
     p.style.setProperty("--tx", `${Math.cos(ang) * dist}px`);
     p.style.setProperty("--ty", `${Math.sin(ang) * dist}px`);
     p.style.background = i % 2 ? "#ffd250" : "#b88ae8";
-    root.appendChild(p);
-    setTimeout(() => p.remove(), 950);
+    frag.appendChild(p);
+    setTimeout(() => p.remove(), 900);
   }
+  root.appendChild(frag);
 }
 
 document.getElementById("sendResult").addEventListener("click", () => {
@@ -83,9 +88,11 @@ document.getElementById("sendResult").addEventListener("click", () => {
   tg.close();
 });
 
-// --- Canvas setup (retina + resize) ---
-function setupCanvas(canvas) {
-  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+function setupCanvas(canvas, opts) {
+  if (window.AuraEngine?.setupCanvas) {
+    return window.AuraEngine.setupCanvas(canvas, opts);
+  }
+  const dpr = Math.min(window.devicePixelRatio || 1, 1.75);
   const size = Math.min(320, Math.floor(window.innerWidth * 0.92));
   canvas.style.width = `${size}px`;
   canvas.style.height = `${size}px`;
@@ -93,6 +100,7 @@ function setupCanvas(canvas) {
   canvas.height = Math.floor(size * dpr);
   const ctx = canvas.getContext("2d", { alpha: false });
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.imageSmoothingEnabled = false;
   return { ctx, size, dpr };
 }
 
@@ -119,6 +127,37 @@ function setupCanvas(canvas) {
   const TICK_MS = 220;
   const particles = [];
   const startBtn = document.getElementById("snakeStartBtn");
+  let gridCache = null;
+  let gridCacheSize = 0;
+
+  function rebuildGridCache() {
+    cell = cellSize();
+    gridCacheSize = size;
+    gridCache = document.createElement("canvas");
+    gridCache.width = size;
+    gridCache.height = size;
+    const g = gridCache.getContext("2d");
+    g.fillStyle = "#120a22";
+    g.fillRect(0, 0, size, size);
+    g.strokeStyle = "rgba(100, 70, 160, 0.15)";
+    g.lineWidth = 1;
+    for (let i = 0; i <= W; i++) {
+      g.beginPath();
+      g.moveTo(i * cell, 0);
+      g.lineTo(i * cell, size);
+      g.stroke();
+      g.beginPath();
+      g.moveTo(0, i * cell);
+      g.lineTo(size, i * cell);
+      g.stroke();
+    }
+  }
+
+  function drawGrid() {
+    cell = cellSize();
+    if (!gridCache || gridCacheSize !== size) rebuildGridCache();
+    ctx.drawImage(gridCache, 0, 0, size, size);
+  }
 
   function cellSize() {
     return size / W;
@@ -141,24 +180,6 @@ function setupCanvas(canvas) {
     do {
       food = [Math.floor(Math.random() * W), Math.floor(Math.random() * W)];
     } while (body.some((p) => p[0] === food[0] && p[1] === food[1]));
-  }
-
-  function drawGrid() {
-    cell = cellSize();
-    ctx.fillStyle = "#120a22";
-    ctx.fillRect(0, 0, size, size);
-    ctx.strokeStyle = "rgba(100, 70, 160, 0.15)";
-    ctx.lineWidth = 1;
-    for (let i = 0; i <= W; i++) {
-      ctx.beginPath();
-      ctx.moveTo(i * cell, 0);
-      ctx.lineTo(i * cell, size);
-      ctx.stroke();
-      ctx.beginPath();
-      ctx.moveTo(0, i * cell);
-      ctx.lineTo(size, i * cell);
-      ctx.stroke();
-    }
   }
 
   function drawFood(t) {
@@ -233,7 +254,7 @@ function setupCanvas(canvas) {
   function spawnEatParticles() {
     const cx = food[0] * cell + cell / 2;
     const cy = food[1] * cell + cell / 2;
-    for (let i = 0; i < 10; i++) {
+    for (let i = 0; i < 6; i++) {
       particles.push({
         x: cx,
         y: cy,
@@ -310,7 +331,7 @@ function setupCanvas(canvas) {
   }
 
   function tick() {
-    if (!alive || !started || activeTab !== "snake") return;
+    if (!alive || !started) return;
     dir = nextDir;
     steps++;
     const nx = body[0][0] + dir[0];
@@ -335,7 +356,7 @@ function setupCanvas(canvas) {
     if (steps >= SNAKE_MAX_STEPS) endGame(false);
   }
 
-  function loop(t) {
+  function snakeLoop(t) {
     drawGrid();
     if (alive) drawFood(t);
     drawSnake();
@@ -349,14 +370,14 @@ function setupCanvas(canvas) {
       p.vy += 0.05;
       if (p.life <= 0) particles.splice(i, 1);
     }
-    if (alive && activeTab === "snake") {
+    if (particles.length > 24) particles.splice(0, particles.length - 24);
+    if (alive && started) {
       if (lastTick === 0) lastTick = t;
       if (t - lastTick >= TICK_MS) {
         lastTick = t;
         tick();
       }
     }
-    requestAnimationFrame(loop);
   }
 
   function setDirection(dx, dy) {
@@ -405,10 +426,24 @@ function setupCanvas(canvas) {
   }
 
   updateStartBtn();
-  window.addEventListener("resize", () => {
-    ({ ctx, size } = setupCanvas(canvas));
-  });
-  requestAnimationFrame(loop);
+  const onResize = window.AuraEngine?.debounce
+    ? window.AuraEngine.debounce(() => {
+        ({ ctx, size } = setupCanvas(canvas));
+        gridCache = null;
+      })
+    : () => {
+        ({ ctx, size } = setupCanvas(canvas));
+        gridCache = null;
+      };
+  window.addEventListener("resize", onResize);
+  if (window.AuraEngine?.createTabLoop) {
+    window.AuraEngine.createTabLoop("snake", snakeLoop);
+  } else {
+    requestAnimationFrame(function loop(t) {
+      snakeLoop(t);
+      requestAnimationFrame(loop);
+    });
+  }
 })();
 
 // --- Crystals (6×6, match-3 с удалением и каскадом) ---
@@ -705,18 +740,27 @@ function setupCanvas(canvas) {
     { passive: false }
   );
 
-  function loop() {
-    if (activeTab === "crystals") {
-      draw();
-      updateHud();
-    }
-    requestAnimationFrame(loop);
+  function crystalsLoop() {
+    draw();
+    if (Date.now() > statusUntil) updateHud();
   }
 
-  window.addEventListener("resize", () => {
-    ({ ctx, size } = setupCanvas(canvas));
-  });
-  requestAnimationFrame(loop);
+  const onCrystalsResize = window.AuraEngine?.debounce
+    ? window.AuraEngine.debounce(() => {
+        ({ ctx, size } = setupCanvas(canvas));
+      })
+    : () => {
+        ({ ctx, size } = setupCanvas(canvas));
+      };
+  window.addEventListener("resize", onCrystalsResize);
+  if (window.AuraEngine?.createTabLoop) {
+    window.AuraEngine.createTabLoop("crystals", crystalsLoop);
+  } else {
+    requestAnimationFrame(function loop() {
+      if (activeTab === "crystals") crystalsLoop();
+      requestAnimationFrame(loop);
+    });
+  }
 })();
 
 // --- Slots ---
@@ -734,15 +778,20 @@ document.getElementById("spinBtn").addEventListener("click", () => {
   reels.forEach((r) => r.classList.add("spinning"));
 
   const spinDuration = 1200 + Math.random() * 400;
-  const interval = setInterval(() => {
+  let spinFrame = 0;
+  function spinTick() {
     reels.forEach((r) => {
       const cell = r.querySelector(".reel-cell") || r;
       cell.textContent = SYM[Math.floor(Math.random() * SYM.length)];
     });
-  }, 70);
+    spinFrame++;
+    if (spinFrame * 90 < spinDuration) {
+      setTimeout(spinTick, 90);
+    }
+  }
+  spinTick();
 
   setTimeout(() => {
-    clearInterval(interval);
     reels.forEach((r) => r.classList.remove("spinning"));
     slotsSpins++;
     const final = [0, 1, 2].map(() => SYM[Math.floor(Math.random() * SYM.length)]);
