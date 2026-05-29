@@ -26,42 +26,30 @@ const SNAKE_MAX_STEPS = 42;
 const CRYSTALS_WIN = 20;
 const CRYSTALS_MAX_SWAPS = 12;
 const MARIO_AURA_RATIO = 100;
+window.MARIO_AURA_RATIO = MARIO_AURA_RATIO;
 
 let lastResult = null;
-var activeTab = "snake";
+var activeTab = "library";
 window.activeTab = activeTab;
 let slotsSpins = 0;
 let slotsBusy = false;
 
-// --- UI helpers ---
-function setResult(game, won, score, extra = {}) {
-  lastResult = { game, won, score, ...extra };
-  const btn = document.getElementById("sendResult");
-  btn.disabled = false;
-  btn.textContent = won
-    ? `✨ Отправить победу (${game})`
-    : `Завершить партию (${game})`;
-  if (won) burstParticles(24);
-}
+// setResult / setMarioResult — в economy.js
 
-function setMarioResult(coins) {
-  const aura = Math.floor(coins / MARIO_AURA_RATIO);
-  lastResult = {
-    game: "mario",
-    won: aura > 0,
-    score: coins,
-    coins,
-    aura_pts: aura,
-    kind: "mario",
-  };
-  const btn = document.getElementById("sendResult");
-  btn.disabled = false;
-  btn.textContent =
-    aura > 0
-      ? `✨ Отправить (+${aura} ауры · ${coins} 🪙)`
-      : `Завершить (${coins} 🪙 · 100 🪙 = 1 ✨)`;
-  if (aura > 0) burstParticles(20);
-}
+document.querySelectorAll(".tabs button").forEach((btn) => {
+  btn.addEventListener("click", () => {
+    document.querySelectorAll(".tabs button").forEach((b) => b.classList.remove("active"));
+    document.querySelectorAll(".panel").forEach((p) => p.classList.remove("active"));
+    btn.classList.add("active");
+    activeTab = btn.dataset.tab;
+    window.activeTab = activeTab;
+    const panel = document.getElementById(activeTab);
+    if (panel) panel.classList.add("active");
+    const back = document.getElementById("libraryBackBar");
+    if (back) back.hidden = activeTab === "library";
+    if (activeTab === "library" && typeof goAuraLibrary === "function") goAuraLibrary();
+  });
+});
 
 function setProgress(id, value, max) {
   const el = document.getElementById(id);
@@ -88,20 +76,10 @@ function burstParticles(count) {
   }
 }
 
-document.querySelectorAll(".tabs button").forEach((btn) => {
-  btn.addEventListener("click", () => {
-    document.querySelectorAll(".tabs button").forEach((b) => b.classList.remove("active"));
-    document.querySelectorAll(".panel").forEach((p) => p.classList.remove("active"));
-    btn.classList.add("active");
-    activeTab = btn.dataset.tab;
-    window.activeTab = activeTab;
-    document.getElementById(activeTab).classList.add("active");
-  });
-});
-
 document.getElementById("sendResult").addEventListener("click", () => {
-  if (!lastResult || !tg) return;
-  tg.sendData(JSON.stringify(lastResult));
+  const payload = window.lastResult || lastResult;
+  if (!payload || !tg) return;
+  tg.sendData(JSON.stringify(payload));
   tg.close();
 });
 

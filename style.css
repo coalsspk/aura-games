@@ -106,7 +106,111 @@ body::after {
   margin: 12px 0;
 }
 
+.aura-wallet-bar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 4px;
+  flex-wrap: wrap;
+}
+
+.aura-wallet-label {
+  font-size: 0.72rem;
+  opacity: 0.75;
+}
+
+.aura-wallet-balance {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--gold);
+}
+
+.aura-wallet-session {
+  font-size: 0.68rem;
+  color: #8aff8a;
+}
+
+.library-back-bar {
+  margin: 4px 8px 0;
+  text-align: left;
+}
+
+.library-back-btn {
+  padding: 6px 12px;
+  font-size: 0.8rem;
+}
+
+.library-heading {
+  font-size: 1.1rem;
+  margin: 8px 0 4px;
+  color: var(--gold);
+}
+
+.library-hint {
+  margin-bottom: 10px;
+}
+
+.library-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  padding: 0 6px 12px;
+  max-width: 420px;
+  margin: 0 auto;
+}
+
+.library-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  min-height: 96px;
+  padding: 10px 6px;
+  border: none;
+  border-radius: 16px;
+  background: linear-gradient(145deg, rgba(40, 32, 72, 0.95), rgba(20, 14, 40, 0.98));
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.06),
+    0 4px 12px rgba(0, 0, 0, 0.35),
+    inset 0 0 0 1px var(--card-accent, rgba(255, 210, 80, 0.2));
+  color: var(--text);
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.library-card:active {
+  transform: scale(0.96);
+  filter: brightness(1.08);
+}
+
+.library-card-icon {
+  font-size: 2rem;
+  line-height: 1;
+}
+
+.library-card-title {
+  font-size: 0.62rem;
+  font-weight: 600;
+  line-height: 1.15;
+  text-align: center;
+  opacity: 0.95;
+}
+
+.library-card-reward {
+  font-size: 0.58rem;
+  color: var(--gold);
+  font-weight: 700;
+}
+
+.tabs-compact[hidden] {
+  display: none !important;
+}
+
 .tabs-compact {
+  display: flex;
   flex-wrap: nowrap;
   overflow-x: auto;
   overflow-y: hidden;
