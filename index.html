@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+  <title>Aura Games</title>
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <header class="hdr">
+    <h1>✨ Aura Games</h1>
+    <p id="balance">Очки ауры — в боте</p>
+  </header>
+  <nav class="tabs">
+    <button type="button" data-tab="snake" class="active">🐍</button>
+    <button type="button" data-tab="crystals">💎</button>
+    <button type="button" data-tab="slots">🎰</button>
+  </nav>
+  <main>
+    <section id="snake" class="panel active">
+      <canvas id="snakeCanvas" width="288" height="288"></canvas>
+      <p class="hint">Свайп или стрелки · 6 ✨ = победа</p>
+      <p id="snakeScore" class="score">0 / 6</p>
+    </section>
+    <section id="crystals" class="panel">
+      <canvas id="crystalsCanvas" width="288" height="288"></canvas>
+      <p class="hint">Тапни две соседние клетки · 20 очков = победа</p>
+      <p id="crystalsScore" class="score">0 / 20</p>
+    </section>
+    <section id="slots" class="panel">
+      <div class="reels" id="reels">
+        <div class="reel">?</div>
+        <div class="reel">?</div>
+        <div class="reel">?</div>
+      </div>
+      <button type="button" id="spinBtn" class="btn">Крутить</button>
+      <p id="slotsMsg" class="hint"></p>
+    </section>
+  </main>
+  <footer>
+    <button type="button" id="sendResult" class="btn primary" disabled>Отправить результат в бот</button>
+    <p class="hint small">Награда начисляется в чате Aura (лимит партий в сутки).</p>
+  </footer>
+  <script src="app.js"></script>
+</body>
+</html>
