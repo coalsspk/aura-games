@@ -12,22 +12,28 @@
   const H = TH * TILE;
   const ENEMY_TOTAL = 12;
   const MAX_ON_FIELD = 4;
-  const SPAWN_CD = 180;
+  const SPAWN_CD = 90;
+  const PLAYER_TILE = { x: 2, y: 10 };
+  const ENEMY_SPAWN_TILES = [
+    [1, 1],
+    [6, 1],
+    [11, 1],
+  ];
 
   const DEFAULT_LEVEL = [
     "#############",
     "#...........#",
-    "#.##.###.##.#",
-    "#.#.......#.#",
-    "#.#.##.##.#.#",
-    "#.....#.....#",
-    "###.#.#.#.###",
-    "#.....#.....#",
+    "#...........#",
+    "#.##.....##.#",
+    "#.##.....##.#",
+    "#...........#",
+    "#....###....#",
+    "#...........#",
     "#.####.####.#",
     "#...........#",
-    "#..#.....#..#",
-    "####.###.####",
-    "#####.#B#####",
+    "#...........#",
+    "#...........#",
+    "####..#B####",
   ];
 
   let levelRows = [...DEFAULT_LEVEL];
@@ -53,11 +59,7 @@
   let animTime = 0;
   let lastStartAt = 0;
 
-  const spawnPoints = [
-    [0, 0],
-    [6 * TILE, 0],
-    [12 * TILE, 0],
-  ];
+  let enemySpawnSlot = 0;
 
   function setupCanvas() {
     dpr = Math.min(window.devicePixelRatio || 1, 2);
@@ -73,6 +75,55 @@
     ctx.imageSmoothingEnabled = false;
   }
 
+  function finalizeMapRows(rows) {
+    const grid = rows.slice(0, TH).map((line) => {
+      const s = String(line).slice(0, TW).padEnd(TW, ".");
+      return s.split("");
+    });
+    while (grid.length < TH) grid.push(".".repeat(TW).split(""));
+
+    for (let x = 0; x < TW; x++) {
+      grid[0][x] = "#";
+      grid[TH - 1][x] = "#";
+    }
+    for (let y = 0; y < TH; y++) {
+      grid[y][0] = "#";
+      grid[y][TW - 1] = "#";
+    }
+
+    for (let y = 10; y <= 11; y++) {
+      for (let x = 1; x <= 3; x++) {
+        grid[y][x] = ".";
+      }
+    }
+
+    for (const [tx, ty] of ENEMY_SPAWN_TILES) {
+      grid[ty][tx] = ".";
+      for (const [dx, dy] of [
+        [0, 1],
+        [0, -1],
+        [1, 0],
+        [-1, 0],
+      ]) {
+        const nx = tx + dx;
+        const ny = ty + dy;
+        if (ny > 0 && ny < TH - 1 && nx > 0 && nx < TW - 1 && grid[ny][nx] !== "B") {
+          grid[ny][nx] = ".";
+        }
+      }
+    }
+
+    const bx = 7;
+    grid[TH - 1][bx] = "B";
+    for (const dx of [-1, 0, 1]) {
+      const nx = bx + dx;
+      if (nx > 0 && nx < TW - 1) grid[TH - 2][nx] = "#";
+    }
+    grid[TH - 2][bx] = ".";
+
+    return grid.map((r) => r.join(""));
+  }
+
   function proceduralMapClient(seed) {
     const rng = (() => {
       let s = seed >>> 0;
@@ -84,41 +135,25 @@
       };
     })();
     const rows = Array.from({ length: TH }, () => Array(TW).fill("."));
-    for (let x = 0; x < TW; x++) {
-      rows[0][x] = "#";
-      rows[TH - 1][x] = "#";
-    }
-    for (let y = 0; y < TH; y++) {
-      rows[y][0] = "#";
-      rows[y][TW - 1] = "#";
-    }
-    const bx = Math.floor(TW / 2);
-    rows[TH - 1][bx] = "B";
-    for (const dx of [-1, 0, 1]) {
-      if (bx + dx > 0 && bx + dx < TW - 1) rows[TH - 2][bx + dx] = "#";
-    }
-    const blocks = 8 + Math.floor(rng() * 7);
-    for (let n = 0; n < blocks; n++) {
-      const x = 1 + Math.floor(rng() * (TW - 4));
-      const y = 2 + Math.floor(rng() * (TH - 5));
-      const w = 2 + Math.floor(rng() * 3);
+    for (let n = 0; n < 12 + Math.floor(rng() * 6); n++) {
+      const x = 2 + Math.floor(rng() * (TW - 5));
+      const y = 3 + Math.floor(rng() * (TH - 6));
+      const w = 2 + Math.floor(rng() * 2);
       for (let i = 0; i < w; i++) {
-        if (x + i < TW - 1) rows[y][x + i] = rng() < 0.75 ? "#" : "@";
+        if (x + i < TW - 1) rows[y][x + i] = rng() < 0.72 ? "#" : "@";
       }
     }
-    if (rng() < 0.45) {
-      const wx = 2 + Math.floor(rng() * (TW - 5));
+    if (rng() < 0.3) {
+      const wx = 3 + Math.floor(rng() * (TW - 6));
       const wy = 4 + Math.floor(rng() * (TH - 7));
       rows[wy][wx] = "~";
     }
-    rows[11][3] = ".";
-    rows[11][4] = ".";
-    return rows.map((r) => r.join(""));
+    return finalizeMapRows(rows.map((r) => r.join("")));
   }
 
   function setMapRows(rows, source) {
     if (Array.isArray(rows) && rows.length === TH) {
-      levelRows = rows.map((line) => String(line).slice(0, TW).padEnd(TW, "."));
+      levelRows = finalizeMapRows(rows);
       mapSource = source || "random";
     }
   }
@@ -143,11 +178,10 @@
         }
       }
     } catch {
-      /* локальный сервер без API — fallback */
+      /* нет API — классическая карта */
     }
-    const seed = Date.now() % 2000000000;
-    setMapRows(proceduralMapClient(seed), "random");
-    setMapStatus("Карта: случайная");
+    setMapRows([...DEFAULT_LEVEL], "classic");
+    setMapStatus("Карта: Battle City");
   }
 
   function parseLevel() {
@@ -210,34 +244,52 @@
 
   function resetPlayer() {
     player = {
-      x: 4 * TILE,
-      y: 11 * TILE,
+      x: PLAYER_TILE.x * TILE,
+      y: PLAYER_TILE.y * TILE,
       dir: 0,
       alive: true,
       lives: 3,
       shootCd: 0,
       moveCd: 0,
-      invuln: 0,
+      invuln: 90,
     };
   }
 
   function spawnEnemy() {
-    if (enemiesLeft <= 0 || enemies.filter((e) => e.alive).length >= MAX_ON_FIELD) return;
-    const slot = spawnPoints[Math.floor(Math.random() * spawnPoints.length)];
-    const ex = slot[0];
-    const ey = slot[1];
-    if (blockAt(ex, ey, TILE - 2, TILE - 2, null)) return;
-    enemies.push({
-      x: ex,
-      y: ey,
-      dir: 2,
-      alive: true,
-      shootCd: 60 + Math.random() * 60,
-      moveCd: 0,
-      aiTimer: 0,
-    });
-    enemiesLeft--;
-    updateHud();
+    if (enemiesLeft <= 0 || enemies.filter((e) => e.alive).length >= MAX_ON_FIELD) {
+      return false;
+    }
+    for (let tryN = 0; tryN < ENEMY_SPAWN_TILES.length; tryN++) {
+      const idx = (enemySpawnSlot + tryN) % ENEMY_SPAWN_TILES.length;
+      enemySpawnSlot = (idx + 1) % ENEMY_SPAWN_TILES.length;
+      const [tx, ty] = ENEMY_SPAWN_TILES[idx];
+      const ex = tx * TILE;
+      const ey = ty * TILE;
+      if (blockAt(ex, ey, TILE - 2, TILE - 2, null)) continue;
+      enemies.push({
+        x: ex,
+        y: ey,
+        dir: 2,
+        alive: true,
+        shootCd: 40 + Math.random() * 40,
+        moveCd: 0,
+        aiTimer: 0,
+        flash: 50,
+      });
+      enemiesLeft--;
+      updateHud();
+      return true;
+    }
+    return false;
+  }
+
+  function spawnInitialWave() {
+    let n = 0;
+    while (n < MAX_ON_FIELD && enemiesLeft > 0) {
+      if (!spawnEnemy()) break;
+      n++;
+    }
+    spawnTimer = SPAWN_CD;
   }
 
   function resetGame() {
@@ -247,11 +299,13 @@
     bullets = [];
     explosions = [];
     enemiesLeft = ENEMY_TOTAL;
-    spawnTimer = 40;
+    enemySpawnSlot = 0;
+    spawnTimer = 0;
     baseAlive = true;
     baseHit = false;
     gameOver = false;
     won = false;
+    spawnInitialWave();
     updateHud();
   }
 
@@ -367,7 +421,7 @@
     if (!baseAlive) return;
     baseAlive = false;
     baseHit = true;
-    addExplosion(6 * TILE, 12 * TILE, true);
+    addExplosion(7 * TILE, (TH - 1) * TILE, true);
     endGame(false);
   }
 
@@ -456,8 +510,8 @@
     player.alive = false;
     setTimeout(() => {
       if (!gameOver) {
-        player.x = 4 * TILE;
-        player.y = 11 * TILE;
+        player.x = PLAYER_TILE.x * TILE;
+        player.y = PLAYER_TILE.y * TILE;
         player.alive = true;
         player.invuln = 120;
       }
@@ -517,31 +571,40 @@
     const px = x * TILE;
     const py = y * TILE;
     if (t === 0) {
-      ctx.fillStyle = "#1a1a1a";
+      const c1 = (x + y) % 2 === 0 ? "#3a3a3a" : "#323232";
+      ctx.fillStyle = c1;
       ctx.fillRect(px, py, TILE, TILE);
-      if ((x + y) % 2 === 0) {
-        ctx.fillStyle = "#222";
-        ctx.fillRect(px, py, TILE, TILE);
-      }
+      ctx.fillStyle = "rgba(0,0,0,0.15)";
+      ctx.fillRect(px, py + TILE - 2, TILE, 2);
     } else if (t === 1) {
-      ctx.fillStyle = "#c84c18";
+      ctx.fillStyle = "#b84a18";
       ctx.fillRect(px, py, TILE, TILE);
-      ctx.fillStyle = "#a03810";
-      for (let i = 0; i < 4; i++) {
-        ctx.fillRect(px + (i % 2) * 8, py + Math.floor(i / 2) * 8, 7, 7);
-      }
+      ctx.fillStyle = "#d06828";
+      ctx.fillRect(px + 1, py + 1, 6, 6);
+      ctx.fillRect(px + 9, py + 1, 6, 6);
+      ctx.fillStyle = "#8a3810";
+      ctx.fillRect(px + 1, py + 9, 6, 6);
+      ctx.fillRect(px + 9, py + 9, 6, 6);
+      ctx.strokeStyle = "#5c2808";
+      ctx.lineWidth = 1;
+      ctx.strokeRect(px + 0.5, py + 0.5, TILE - 1, TILE - 1);
     } else if (t === 2) {
-      ctx.fillStyle = "#a8a8b0";
+      ctx.fillStyle = "#909098";
       ctx.fillRect(px, py, TILE, TILE);
-      ctx.fillStyle = "#e0e0e8";
+      ctx.fillStyle = "#d8d8e0";
       ctx.fillRect(px + 2, py + 2, 5, 5);
       ctx.fillRect(px + 9, py + 9, 5, 5);
+      ctx.fillStyle = "#686870";
+      ctx.fillRect(px + 9, py + 2, 5, 5);
+      ctx.fillRect(px + 2, py + 9, 5, 5);
     } else if (t === 3) {
-      const wave = Math.sin(animTime * 0.05 + x + y) * 2;
-      ctx.fillStyle = "#2868c8";
+      const wave = Math.sin(animTime * 0.06 + x * 0.7 + y) * 1.5;
+      ctx.fillStyle = "#1a48a0";
       ctx.fillRect(px, py, TILE, TILE);
-      ctx.fillStyle = "#48a0f0";
-      ctx.fillRect(px, py + 4 + wave, TILE, 4);
+      ctx.fillStyle = "#3890e8";
+      ctx.fillRect(px, py + 3 + wave, TILE, 5);
+      ctx.fillStyle = "rgba(255,255,255,0.2)";
+      ctx.fillRect(px + 2, py + 2 + wave, TILE - 4, 2);
     } else if (t === 4) {
       drawEagle(px, py, baseAlive);
     }
@@ -574,34 +637,51 @@
     if (!t.alive) return;
     const px = t.x;
     const py = t.y;
-    const flash = isPlayer && t.invuln > 0 && Math.floor(t.invuln / 6) % 2 === 0;
-    if (flash) return;
+    if (isPlayer && t.invuln > 0 && Math.floor(t.invuln / 5) % 2 === 0) return;
 
-    const body = isPlayer ? "#e8c030" : "#a0a0a8";
-    const dark = isPlayer ? "#a87818" : "#606068";
-    const tread = "#383838";
+    if (!isPlayer && t.flash > 0) {
+      t.flash--;
+      ctx.fillStyle = "rgba(255, 200, 80, 0.55)";
+      ctx.fillRect(px - 1, py - 1, TILE + 2, TILE + 2);
+    }
 
-    ctx.fillStyle = tread;
+    const body = isPlayer ? "#f0d038" : "#b0b0b8";
+    const dark = isPlayer ? "#c08818" : "#686870";
+    const tread = "#2a2a2a";
+    const treadHi = "#444";
+
     if (t.dir === 0 || t.dir === 2) {
-      ctx.fillRect(px, py, 4, TILE);
-      ctx.fillRect(px + TILE - 4, py, 4, TILE);
+      ctx.fillStyle = tread;
+      ctx.fillRect(px, py + 1, 5, TILE - 2);
+      ctx.fillRect(px + TILE - 5, py + 1, 5, TILE - 2);
+      ctx.fillStyle = treadHi;
+      ctx.fillRect(px + 1, py + 2, 2, TILE - 4);
+      ctx.fillRect(px + TILE - 3, py + 2, 2, TILE - 4);
     } else {
-      ctx.fillRect(px, py, TILE, 4);
-      ctx.fillRect(px, py + TILE - 4, TILE, 4);
+      ctx.fillStyle = tread;
+      ctx.fillRect(px + 1, py, TILE - 2, 5);
+      ctx.fillRect(px + 1, py + TILE - 5, TILE - 2, 5);
+      ctx.fillStyle = treadHi;
+      ctx.fillRect(px + 2, py + 1, TILE - 4, 2);
+      ctx.fillRect(px + 2, py + TILE - 3, TILE - 4, 2);
     }
 
     ctx.fillStyle = body;
     ctx.fillRect(px + 3, py + 3, TILE - 6, TILE - 6);
     ctx.fillStyle = dark;
     ctx.fillRect(px + 5, py + 5, TILE - 10, TILE - 10);
+    if (isPlayer) {
+      ctx.fillStyle = "#fff8c0";
+      ctx.fillRect(px + 6, py + 6, 4, 4);
+    }
 
     ctx.fillStyle = body;
     const cx = px + TILE / 2;
     const cy = py + TILE / 2;
-    if (t.dir === 0) ctx.fillRect(cx - 2, py, 4, 8);
-    if (t.dir === 2) ctx.fillRect(cx - 2, py + TILE - 8, 4, 8);
-    if (t.dir === 1) ctx.fillRect(px + TILE - 8, cy - 2, 8, 4);
-    if (t.dir === 3) ctx.fillRect(px, cy - 2, 8, 4);
+    if (t.dir === 0) ctx.fillRect(cx - 2, py, 4, 9);
+    if (t.dir === 2) ctx.fillRect(cx - 2, py + TILE - 9, 4, 9);
+    if (t.dir === 1) ctx.fillRect(px + TILE - 9, cy - 2, 9, 4);
+    if (t.dir === 3) ctx.fillRect(px, cy - 2, 9, 4);
   }
 
   function drawBullet(b) {
@@ -735,6 +815,7 @@
   }
 
   setupCanvas();
+  levelRows = finalizeMapRows([...DEFAULT_LEVEL]);
   parseLevel();
   updateHud();
   window.addEventListener("resize", setupCanvas);
