@@ -14,6 +14,10 @@ const GEM_DEFS = [
   { emoji: "⭐", color: "#ffd250", glow: "#cc9900" },
   { emoji: "🌙", color: "#a8b8ff", glow: "#6677cc" },
   { emoji: "✨", color: "#fff8c0", glow: "#ddcc66" },
+  { emoji: "🔴", color: "#ff6a6a", glow: "#cc3333" },
+  { emoji: "🟢", color: "#6aff8a", glow: "#33aa55" },
+  { emoji: "🟣", color: "#d070ff", glow: "#9933cc" },
+  { emoji: "🧡", color: "#ffaa55", glow: "#dd7722" },
 ];
 
 const SLOTS_MAX = 6;
@@ -313,18 +317,23 @@ function setupCanvas(canvas) {
   requestAnimationFrame(loop);
 })();
 
-// --- Crystals ---
+// --- Crystals (6×6, match-3 с удалением и каскадом) ---
 (function initCrystals() {
   const canvas = document.getElementById("crystalsCanvas");
   let { ctx, size } = setupCanvas(canvas);
-  const N = 4;
+  const N = 6;
   let cell = size / N;
   let grid = [];
   let pick = null;
   let score = 0;
   let swaps = 0;
   let flashCells = [];
+  let popCells = new Map();
+  let floatText = null;
+  let statusMsg = "";
+  let statusUntil = 0;
   let animating = false;
+  let shakeUntil = 0;
 
   function gemIndex(emoji) {
     return GEM_DEFS.findIndex((g) => g.emoji === emoji);
@@ -334,64 +343,113 @@ function setupCanvas(canvas) {
     return GEM_DEFS[Math.floor(Math.random() * GEM_DEFS.length)].emoji;
   }
 
+  function findMatched() {
+    const matched = new Set();
+    for (let y = 0; y < N; y++) {
+      let run = 1;
+      for (let x = 1; x <= N; x++) {
+        const same =
+          x < N && grid[y][x] && grid[y][x] === grid[y][x - 1];
+        if (same) run++;
+        else {
+          if (run >= 3) {
+            for (let i = 0; i < run; i++) matched.add(`${x - 1 - i},${y}`);
+          }
+          run = 1;
+        }
+      }
+    }
+    for (let x = 0; x < N; x++) {
+      let run = 1;
+      for (let y = 1; y <= N; y++) {
+        const same =
+          y < N && grid[y][x] && grid[y][x] === grid[y - 1][x];
+        if (same) run++;
+        else {
+          if (run >= 3) {
+            for (let i = 0; i < run; i++) matched.add(`${x},${y - 1 - i}`);
+          }
+          run = 1;
+        }
+      }
+    }
+    return matched;
+  }
+
   function initGrid() {
-    grid = Array.from({ length: N }, () =>
-      Array.from({ length: N }, () => randomGem())
-    );
+    do {
+      grid = Array.from({ length: N }, () =>
+        Array.from({ length: N }, () => randomGem())
+      );
+    } while (findMatched().size > 0);
   }
   initGrid();
+
+  function swapCells(x1, y1, x2, y2) {
+    const t = grid[y1][x1];
+    grid[y1][x1] = grid[y2][x2];
+    grid[y2][x2] = t;
+  }
+
+  function collapseColumn(x) {
+    const col = [];
+    for (let y = N - 1; y >= 0; y--) {
+      if (grid[y][x]) col.push(grid[y][x]);
+    }
+    while (col.length < N) col.push(randomGem());
+    for (let y = N - 1, i = 0; y >= 0; y--, i++) grid[y][x] = col[i];
+  }
+
+  function removeMatched(matched) {
+    matched.forEach((key) => {
+      const [x, y] = key.split(",").map(Number);
+      grid[y][x] = null;
+      popCells.set(key, performance.now());
+    });
+    for (let x = 0; x < N; x++) collapseColumn(x);
+  }
+
+  function resolveAllMatches() {
+    let total = 0;
+    let matched = findMatched();
+    while (matched.size > 0) {
+      total += matched.size;
+      flashCells = [...matched].map((s) => {
+        const [a, b] = s.split(",").map(Number);
+        return { x: a, y: b };
+      });
+      removeMatched(matched);
+      matched = findMatched();
+    }
+    return total;
+  }
+
+  function setStatus(text, ms = 1200) {
+    statusMsg = text;
+    statusUntil = performance.now() + ms;
+    const st = document.getElementById("crystalsStatus");
+    if (st) st.textContent = text;
+  }
 
   function drawGem(cx, cy, emoji, scale, glow) {
     const idx = gemIndex(emoji);
     const def = GEM_DEFS[idx >= 0 ? idx : 0];
-    const r = cell * 0.28 * scale;
+    const r = cell * 0.26 * scale;
     const g = ctx.createRadialGradient(cx - r * 0.3, cy - r * 0.3, 0, cx, cy, r * 1.8);
     g.addColorStop(0, "#ffffff");
     g.addColorStop(0.35, def.color);
     g.addColorStop(1, def.glow);
     ctx.fillStyle = g;
     ctx.shadowColor = def.glow;
-    ctx.shadowBlur = glow ? 14 : 6;
+    ctx.shadowBlur = glow ? 12 : 4;
     ctx.beginPath();
     ctx.arc(cx, cy, r, 0, Math.PI * 2);
     ctx.fill();
     ctx.shadowBlur = 0;
-    ctx.font = `${cell * 0.42 * scale}px serif`;
+    ctx.font = `${cell * 0.38 * scale}px serif`;
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
     ctx.fillText(emoji, cx, cy + 1);
-  }
-
-  function draw() {
-    cell = size / N;
-    const t = performance.now();
-    ctx.fillStyle = "#100820";
-    ctx.fillRect(0, 0, size, size);
-    for (let y = 0; y < N; y++) {
-      for (let x = 0; x < N; x++) {
-        const px = x * cell;
-        const py = y * cell;
-        const sel = pick && pick[0] === x && pick[1] === y;
-        const flash = flashCells.some((c) => c.x === x && c.y === y);
-        const pulse = sel ? 0.92 + Math.sin(t * 0.012) * 0.08 : 1;
-        ctx.fillStyle = flash
-          ? "rgba(255, 220, 100, 0.45)"
-          : sel
-            ? "rgba(120, 80, 200, 0.55)"
-            : "rgba(40, 28, 72, 0.9)";
-        roundRect(ctx, px + 4, py + 4, cell - 8, cell - 8, 10);
-        ctx.fill();
-        if (sel) {
-          ctx.strokeStyle = "#ffd250";
-          ctx.lineWidth = 2;
-          roundRect(ctx, px + 4, py + 4, cell - 8, cell - 8, 10);
-          ctx.stroke();
-        }
-        drawGem(px + cell / 2, py + cell / 2, grid[y][x], pulse, sel || flash);
-      }
-    }
-    document.getElementById("crystalsScore").textContent = `${score} / ${CRYSTALS_WIN}`;
-    setProgress("crystalsProgress", score, CRYSTALS_WIN);
   }
 
   function roundRect(c, x, y, w, h, r) {
@@ -404,34 +462,73 @@ function setupCanvas(canvas) {
     c.closePath();
   }
 
-  function matches() {
-    const matched = new Set();
-    let pts = 0;
+  function draw() {
+    cell = size / N;
+    const t = performance.now();
+    const shake =
+      shakeUntil > t ? Math.sin(t * 0.08) * 4 * (shakeUntil - t) / 300 : 0;
+    ctx.save();
+    ctx.translate(shake, 0);
+    ctx.fillStyle = "#100820";
+    ctx.fillRect(0, 0, size, size);
+    const pad = Math.max(2, cell * 0.06);
+    const radius = Math.max(4, cell * 0.12);
     for (let y = 0; y < N; y++) {
-      for (let x = 0; x < N - 2; x++) {
-        if (grid[y][x] === grid[y][x + 1] && grid[y][x] === grid[y][x + 2]) {
-          pts += 3;
-          matched.add(`${x},${y}`);
-          matched.add(`${x + 1},${y}`);
-          matched.add(`${x + 2},${y}`);
+      for (let x = 0; x < N; x++) {
+        const gem = grid[y][x];
+        if (!gem) continue;
+        const px = x * cell;
+        const py = y * cell;
+        const sel = pick && pick[0] === x && pick[1] === y;
+        const flash = flashCells.some((c) => c.x === x && c.y === y);
+        const popT = popCells.get(`${x},${y}`);
+        let scale = sel ? 0.92 + Math.sin(t * 0.012) * 0.08 : 1;
+        if (popT) {
+          const p = Math.min(1, (t - popT) / 220);
+          scale *= 1 + p * 0.35;
+          if (p >= 1) popCells.delete(`${x},${y}`);
         }
+        ctx.fillStyle = flash
+          ? "rgba(255, 220, 100, 0.55)"
+          : sel
+            ? "rgba(120, 80, 200, 0.55)"
+            : "rgba(40, 28, 72, 0.92)";
+        roundRect(ctx, px + pad, py + pad, cell - pad * 2, cell - pad * 2, radius);
+        ctx.fill();
+        if (sel) {
+          ctx.strokeStyle = "#ffd250";
+          ctx.lineWidth = 2;
+          roundRect(ctx, px + pad, py + pad, cell - pad * 2, cell - pad * 2, radius);
+          ctx.stroke();
+        }
+        drawGem(px + cell / 2, py + cell / 2, gem, scale, sel || flash);
       }
     }
-    for (let x = 0; x < N; x++) {
-      for (let y = 0; y < N - 2; y++) {
-        if (grid[y][x] === grid[y + 1][x] && grid[y][x] === grid[y + 2][x]) {
-          pts += 3;
-          matched.add(`${x},${y}`);
-          matched.add(`${x},${y + 1}`);
-          matched.add(`${x},${y + 2}`);
-        }
+    if (floatText && floatText.until > t) {
+      const a = 1 - (t - floatText.start) / 900;
+      ctx.globalAlpha = Math.max(0, a);
+      ctx.fillStyle = "#ffe566";
+      ctx.font = `bold ${Math.round(cell * 0.55)}px sans-serif`;
+      ctx.textAlign = "center";
+      ctx.fillText(
+        floatText.text,
+        floatText.x,
+        floatText.y - (t - floatText.start) * 0.04
+      );
+      ctx.globalAlpha = 1;
+    } else if (floatText) floatText = null;
+    ctx.restore();
+  }
+
+  function updateHud() {
+    document.getElementById("crystalsScore").textContent = `${score} / ${CRYSTALS_WIN}`;
+    setProgress("crystalsProgress", score, CRYSTALS_WIN);
+    if (performance.now() > statusUntil && !animating) {
+      const st = document.getElementById("crystalsStatus");
+      if (st && st.textContent !== "🎉 Победа!" && st.textContent !== "Партия окончена") {
+        st.textContent = "Тап: две соседние клетки";
       }
     }
-    flashCells = [...matched].map((s) => {
-      const [a, b] = s.split(",").map(Number);
-      return { x: a, y: b };
-    });
-    return pts;
   }
 
   function endGame(won) {
@@ -443,49 +540,87 @@ function setupCanvas(canvas) {
     setResult("crystals", won, score);
   }
 
-  canvas.addEventListener("click", (e) => {
-    if (animating || swaps >= CRYSTALS_MAX_SWAPS || activeTab !== "crystals") return;
+  function cellFromEvent(e) {
     const rect = canvas.getBoundingClientRect();
-    const x = Math.floor(((e.clientX - rect.left) / rect.width) * N);
-    const y = Math.floor(((e.clientY - rect.top) / rect.height) * N);
+    const cx = (e.clientX - rect.left) / rect.width;
+    const cy = (e.clientY - rect.top) / rect.height;
+    const x = Math.min(N - 1, Math.max(0, Math.floor(cx * N)));
+    const y = Math.min(N - 1, Math.max(0, Math.floor(cy * N)));
+    return [x, y];
+  }
+
+  function onCellTap(x, y) {
+    if (animating || swaps >= CRYSTALS_MAX_SWAPS || activeTab !== "crystals") return;
     if (!pick) {
       pick = [x, y];
-      draw();
       return;
     }
     const [x0, y0] = pick;
+    if (x === x0 && y === y0) {
+      pick = null;
+      return;
+    }
     if (Math.abs(x - x0) + Math.abs(y - y0) !== 1) {
       pick = [x, y];
-      draw();
       return;
     }
     animating = true;
-    const t = grid[y][x];
-    grid[y][x] = grid[y0][x0];
-    grid[y0][x0] = t;
     pick = null;
+    swapCells(x, y, x0, y0);
+    const gained = resolveAllMatches();
+    if (gained === 0) {
+      swapCells(x, y, x0, y0);
+      shakeUntil = performance.now() + 300;
+      setStatus("Нет совпадения — попробуйте другой обмен");
+      animating = false;
+      return;
+    }
     swaps++;
-    const gained = matches();
     score += gained;
-    if (gained > 0) burstParticles(12);
-    draw();
+    floatText = {
+      text: `+${gained}`,
+      x: size / 2,
+      y: size / 2,
+      start: performance.now(),
+      until: performance.now() + 900,
+    };
+    burstParticles(Math.min(24, 8 + gained));
+    setStatus(`Серия! +${gained} очков`);
     setTimeout(() => {
       flashCells = [];
+      popCells.clear();
       animating = false;
-      draw();
       if (score >= CRYSTALS_WIN) endGame(true);
       else if (swaps >= CRYSTALS_MAX_SWAPS) endGame(false);
-    }, 280);
+    }, 320);
+  }
+
+  canvas.addEventListener("click", (e) => {
+    const [x, y] = cellFromEvent(e);
+    onCellTap(x, y);
   });
+  canvas.addEventListener(
+    "touchend",
+    (e) => {
+      if (activeTab !== "crystals") return;
+      e.preventDefault();
+      const t = e.changedTouches[0];
+      const [x, y] = cellFromEvent(t);
+      onCellTap(x, y);
+    },
+    { passive: false }
+  );
 
   function loop() {
-    if (activeTab === "crystals") draw();
+    if (activeTab === "crystals") {
+      draw();
+      updateHud();
+    }
     requestAnimationFrame(loop);
   }
 
   window.addEventListener("resize", () => {
     ({ ctx, size } = setupCanvas(canvas));
-    draw();
   });
   requestAnimationFrame(loop);
 })();
