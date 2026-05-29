@@ -29,18 +29,22 @@
       <span class="tab-icon">🎰</span>
       <span class="tab-label">Слоты</span>
     </button>
+    <button type="button" data-tab="mario">
+      <span class="tab-icon">🍄</span>
+      <span class="tab-label">Марио</span>
+    </button>
   </nav>
 
   <main>
     <section id="snake" class="panel active">
-      <div class="game-frame">
+      <div id="snakeFrame" class="game-frame">
         <canvas id="snakeCanvas" width="320" height="320"></canvas>
+        <button type="button" id="snakeStartBtn" class="btn primary snake-start-btn">▶ Старт</button>
       </div>
       <div class="progress-wrap" aria-hidden="true">
         <div id="snakeProgress" class="progress-bar"></div>
       </div>
       <p id="snakeScore" class="score">0 / 6 ✨</p>
-      <button type="button" id="snakeStartBtn" class="btn primary">▶ Старт</button>
       <p id="snakeStatus" class="status-badge">Нажмите «Старт»</p>
       <p class="hint">Соберите 6 звёзд · не врежьтесь в стены</p>
     </section>
@@ -55,6 +59,30 @@
       <p id="crystalsScore" class="score">0 / 20</p>
       <p id="crystalsStatus" class="status-badge">Тап: две соседние клетки</p>
       <p class="hint">Поле 6×6 · 3+ в ряд исчезают · 20 очков = победа</p>
+    </section>
+
+    <section id="mario" class="panel">
+      <div id="marioFrame" class="game-frame mario-frame">
+        <canvas id="marioCanvas" width="360" height="260"></canvas>
+        <button type="button" id="marioStartBtn" class="btn primary snake-start-btn">▶ Старт</button>
+      </div>
+      <div class="progress-wrap" aria-hidden="true">
+        <div id="marioProgress" class="progress-bar"></div>
+      </div>
+      <p class="score">
+        <span id="marioCoins">0 🪙</span>
+        ·
+        <span id="marioAura">0 ✨</span>
+        ·
+        <span id="marioLives">❤️❤️❤️</span>
+      </p>
+      <div class="mario-controls" aria-label="Управление">
+        <button type="button" class="mario-pad" data-mario="left">◀</button>
+        <button type="button" class="mario-pad" data-mario="jump">⬆</button>
+        <button type="button" class="mario-pad" data-mario="right">▶</button>
+      </div>
+      <p id="marioStatus" class="status-badge">Нажмите «Старт»</p>
+      <p class="hint">Дойдите до флага · 100 🪙 = 1 ✨ ауры</p>
     </section>
 
     <section id="slots" class="panel">
@@ -77,5 +105,6 @@
   </footer>
 
   <script src="app.js"></script>
+  <script src="mario.js"></script>
 </body>
 </html>

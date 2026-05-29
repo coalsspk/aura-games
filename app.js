@@ -25,6 +25,7 @@ const SNAKE_WIN = 6;
 const SNAKE_MAX_STEPS = 42;
 const CRYSTALS_WIN = 20;
 const CRYSTALS_MAX_SWAPS = 12;
+const MARIO_AURA_RATIO = 100;
 
 let lastResult = null;
 let activeTab = "snake";
@@ -40,6 +41,25 @@ function setResult(game, won, score, extra = {}) {
     ? `✨ Отправить победу (${game})`
     : `Завершить партию (${game})`;
   if (won) burstParticles(24);
+}
+
+function setMarioResult(coins) {
+  const aura = Math.floor(coins / MARIO_AURA_RATIO);
+  lastResult = {
+    game: "mario",
+    won: aura > 0,
+    score: coins,
+    coins,
+    aura_pts: aura,
+    kind: "mario",
+  };
+  const btn = document.getElementById("sendResult");
+  btn.disabled = false;
+  btn.textContent =
+    aura > 0
+      ? `✨ Отправить (+${aura} ауры · ${coins} 🪙)`
+      : `Завершить (${coins} 🪙 · 100 🪙 = 1 ✨)`;
+  if (aura > 0) burstParticles(20);
 }
 
 function setProgress(id, value, max) {
@@ -99,15 +119,16 @@ function setupCanvas(canvas) {
 // --- Snake ---
 (function initSnake() {
   const canvas = document.getElementById("snakeCanvas");
-  const { ctx, size } = setupCanvas(canvas);
+  const frame = document.getElementById("snakeFrame");
+  let { ctx, size } = setupCanvas(canvas);
   const W = 8;
-  const cell = size / W;
-  let dir = [0, 1];
-  let nextDir = [0, 1];
+  let cell = size / W;
+  let dir = [1, 0];
+  let nextDir = [1, 0];
   let body = [
-    [3, 3],
-    [3, 2],
-    [3, 1],
+    [4, 4],
+    [3, 4],
+    [2, 4],
   ];
   let food = [6, 5];
   let score = 0;
@@ -119,14 +140,20 @@ function setupCanvas(canvas) {
   const particles = [];
   const startBtn = document.getElementById("snakeStartBtn");
 
+  function cellSize() {
+    return size / W;
+  }
+
   function updateStartBtn() {
     if (!startBtn) return;
     if (alive) {
+      frame?.classList.add("snake-running");
       startBtn.disabled = true;
       startBtn.textContent = "Игра идёт…";
     } else {
+      frame?.classList.remove("snake-running");
       startBtn.disabled = false;
-      startBtn.textContent = started || score > 0 || steps > 0 ? "🔄 Снова" : "▶ Старт";
+      startBtn.textContent = score > 0 || steps > 0 ? "🔄 Снова" : "▶ Старт";
     }
   }
 
@@ -137,6 +164,7 @@ function setupCanvas(canvas) {
   }
 
   function drawGrid() {
+    cell = cellSize();
     ctx.fillStyle = "#120a22";
     ctx.fillRect(0, 0, size, size);
     ctx.strokeStyle = "rgba(100, 70, 160, 0.15)";
@@ -239,12 +267,12 @@ function setupCanvas(canvas) {
   }
 
   function resetGame() {
-    dir = [0, 1];
-    nextDir = [0, 1];
+    dir = [1, 0];
+    nextDir = [1, 0];
     body = [
-      [3, 3],
-      [3, 2],
-      [3, 1],
+      [4, 4],
+      [3, 4],
+      [2, 4],
     ];
     score = 0;
     steps = 0;
@@ -259,12 +287,19 @@ function setupCanvas(canvas) {
     }
   }
 
-  function startGame() {
+  let lastStartAt = 0;
+
+  function startGame(e) {
+    const now = Date.now();
+    if (now - lastStartAt < 350) return;
     if (alive) return;
+    lastStartAt = now;
+    if (e?.cancelable) e.preventDefault();
+    if (e) e.stopPropagation();
     resetGame();
     started = true;
     alive = true;
-    lastTick = performance.now();
+    lastTick = 0;
     updateStartBtn();
   }
 
@@ -282,13 +317,16 @@ function setupCanvas(canvas) {
 
   function drawStartOverlay() {
     if (alive) return;
-    ctx.fillStyle = "rgba(10, 8, 24, 0.5)";
+    ctx.fillStyle = "rgba(10, 8, 24, 0.45)";
     ctx.fillRect(0, 0, size, size);
-    ctx.fillStyle = "#e8e0ff";
-    ctx.font = `600 ${Math.round(cell * 0.55)}px system-ui, sans-serif`;
-    ctx.textAlign = "center";
-    ctx.textBaseline = "middle";
-    ctx.fillText(started || score > 0 || steps > 0 ? "Снова" : "Старт", size / 2, size / 2);
+  }
+
+  function hitsBody(nx, ny, willGrow) {
+    const limit = willGrow ? body.length : body.length - 1;
+    for (let i = 0; i < limit; i++) {
+      if (body[i][0] === nx && body[i][1] === ny) return true;
+    }
+    return false;
   }
 
   function tick() {
@@ -297,7 +335,8 @@ function setupCanvas(canvas) {
     steps++;
     const nx = body[0][0] + dir[0];
     const ny = body[0][1] + dir[1];
-    if (nx < 0 || ny < 0 || nx >= W || ny >= W || body.some((p) => p[0] === nx && p[1] === ny)) {
+    const willGrow = nx === food[0] && ny === food[1];
+    if (nx < 0 || ny < 0 || nx >= W || ny >= W || hitsBody(nx, ny, willGrow)) {
       endGame(score >= SNAKE_WIN);
       return;
     }
@@ -330,9 +369,12 @@ function setupCanvas(canvas) {
       p.vy += 0.05;
       if (p.life <= 0) particles.splice(i, 1);
     }
-    if (alive && activeTab === "snake" && t - lastTick >= TICK_MS) {
-      lastTick = t;
-      tick();
+    if (alive && activeTab === "snake") {
+      if (lastTick === 0) lastTick = t;
+      if (t - lastTick >= TICK_MS) {
+        lastTick = t;
+        tick();
+      }
     }
     requestAnimationFrame(loop);
   }
@@ -370,9 +412,22 @@ function setupCanvas(canvas) {
     { passive: true }
   );
 
-  if (startBtn) startBtn.addEventListener("click", startGame);
+  if (startBtn) {
+    startBtn.addEventListener("click", (e) => startGame(e));
+    startBtn.addEventListener(
+      "touchend",
+      (e) => {
+        e.preventDefault();
+        startGame(e);
+      },
+      { passive: false }
+    );
+  }
+
   updateStartBtn();
-  window.addEventListener("resize", () => setupCanvas(canvas));
+  window.addEventListener("resize", () => {
+    ({ ctx, size } = setupCanvas(canvas));
+  });
   requestAnimationFrame(loop);
 })();
 
