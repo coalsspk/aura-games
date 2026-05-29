@@ -348,6 +348,40 @@ body::after {
   display: none;
 }
 
+.tanks-level-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  max-width: min(340px, 96vw);
+  margin: 4px auto 2px;
+  padding: 0 8px;
+}
+
+.tanks-level-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  opacity: 0.85;
+  white-space: nowrap;
+}
+
+.tanks-level-select {
+  flex: 1;
+  min-width: 0;
+  max-width: 220px;
+  padding: 6px 8px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 210, 80, 0.35);
+  background: rgba(12, 8, 28, 0.95);
+  color: var(--text);
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.tanks-level-select:disabled {
+  opacity: 0.55;
+}
+
 .tanks-map-label {
   font-size: 0.68rem;
   opacity: 0.75;
@@ -373,6 +407,7 @@ body::after {
   border: 1px solid rgba(255, 255, 255, 0.08);
   box-shadow: 0 2px 12px rgba(0, 0, 0, 0.3);
   -webkit-tap-highlight-color: transparent;
+  touch-action: none;
 }
 
 .tanks-controls-row {

@@ -4,9 +4,13 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
   <meta name="theme-color" content="#0a0618" />
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+  <meta http-equiv="Pragma" content="no-cache" />
+  <meta http-equiv="Expires" content="0" />
   <title>Aura Games</title>
+  <script>window.ARCADE_BUILD="20260529-4";</script>
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
-  <link rel="stylesheet" href="style.css" />
+  <link rel="stylesheet" href="style.css?v=20260529-4" />
 </head>
 <body>
   <div id="particles" class="particles" aria-hidden="true"></div>
@@ -118,6 +122,10 @@
         ·
         <span id="tanksEnemies">🎯 12</span>
       </p>
+      <div class="tanks-level-row">
+        <label class="tanks-level-label" for="tanksLevelSelect">Уровень</label>
+        <select id="tanksLevelSelect" class="tanks-level-select" aria-label="Выбор уровня"></select>
+      </div>
       <div class="tanks-controls" aria-label="Управление танком">
         <button type="button" class="tanks-pad tanks-pad-up" data-tanks="up" aria-label="Вверх">
           <span class="tanks-pad-icon">⬆</span>
@@ -187,9 +195,9 @@
     <p class="hint small">Награда начисляется в чате Aura · лимит партий в сутки</p>
   </footer>
 
-  <script src="app.js"></script>
-  <script src="mario.js"></script>
-  <script src="poker.js"></script>
-  <script src="tanks.js"></script>
+  <script src="app.js?v=20260529-4"></script>
+  <script src="mario.js?v=20260529-4"></script>
+  <script src="poker.js?v=20260529-4"></script>
+  <script src="tanks.js?v=20260529-4"></script>
 </body>
 </html>

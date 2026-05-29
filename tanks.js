@@ -13,6 +13,8 @@
   const ENEMY_TOTAL = 12;
   const MAX_ON_FIELD = 4;
   const SPAWN_CD = 90;
+  const LEVEL_COUNT = 99;
+  const BUILD = window.ARCADE_BUILD || "dev";
   const PLAYER_TILE = { x: 2, y: 10 };
   const ENEMY_SPAWN_TILES = [
     [1, 1],
@@ -33,14 +35,17 @@
     "#...........#",
     "#...........#",
     "#...........#",
-    "####..#B####",
+    "####..#B#####",
   ];
 
   let levelRows = [...DEFAULT_LEVEL];
   let mapSource = "builtin";
   let mapLoading = false;
+  let levelsPack = null;
+  let selectedLevel = 1;
 
-  const keys = { up: false, down: false, left: false, right: false, fire: false };
+  const input = { up: false, down: false, left: false, right: false, fire: false };
+  const levelSelect = document.getElementById("tanksLevelSelect");
   let dpr = 1;
   let viewScale = 1;
   let ctx;
@@ -163,25 +168,95 @@
     if (el) el.textContent = text;
   }
 
-  async function fetchLevelMap() {
-    setMapStatus("Карта: загрузка…");
+  function clearInput() {
+    input.up = false;
+    input.down = false;
+    input.left = false;
+    input.right = false;
+    input.fire = false;
+    document.querySelectorAll(".tanks-pad-active").forEach((b) => {
+      b.classList.remove("tanks-pad-active");
+    });
+  }
+
+  function getSelectedLevelNum() {
+    if (!levelSelect) return 1;
+    const n = parseInt(levelSelect.value, 10);
+    return Number.isFinite(n) ? n : 1;
+  }
+
+  function fillLevelSelect() {
+    if (!levelSelect) return;
+    levelSelect.innerHTML = "";
+    const rnd = document.createElement("option");
+    rnd.value = "0";
+    rnd.textContent = "🎲 Случайный / AI";
+    levelSelect.appendChild(rnd);
+    for (let i = 1; i <= LEVEL_COUNT; i++) {
+      const o = document.createElement("option");
+      o.value = String(i);
+      o.textContent = i === 1 ? "1 — Классика" : `Уровень ${i}`;
+      levelSelect.appendChild(o);
+    }
+    levelSelect.value = "1";
+  }
+
+  async function loadLevelsPack() {
+    if (levelsPack) return true;
     try {
-      const res = await fetch("/api/tanks-map", { cache: "no-store" });
-      if (res.ok) {
-        const data = await res.json();
-        if (data.rows && data.rows.length === TH) {
-          setMapRows(data.rows, data.source === "deepseek" ? "deepseek" : "random");
-          setMapStatus(
-            data.source === "deepseek" ? "Карта: ✨ DeepSeek" : "Карта: случайная"
-          );
-          return;
-        }
+      const url = `maps/levels.json?v=${encodeURIComponent(BUILD)}`;
+      const res = await fetch(url, { cache: "no-store" });
+      if (!res.ok) return false;
+      const data = await res.json();
+      if (Array.isArray(data.levels) && data.levels.length >= LEVEL_COUNT) {
+        levelsPack = data.levels;
+        return true;
       }
     } catch {
-      /* нет API — классическая карта */
+      /* офлайн / старая публикация */
     }
-    setMapRows([...DEFAULT_LEVEL], "classic");
-    setMapStatus("Карта: Battle City");
+    return false;
+  }
+
+  function levelRowsFromPack(num) {
+    if (levelsPack && num >= 1 && num <= levelsPack.length) {
+      return levelsPack[num - 1];
+    }
+    if (num === 1) return [...DEFAULT_LEVEL];
+    return proceduralMapClient(num * 9973);
+  }
+
+  async function loadSelectedLevel() {
+    selectedLevel = getSelectedLevelNum();
+    setMapStatus("Карта: загрузка…");
+    await loadLevelsPack();
+
+    if (selectedLevel === 0) {
+      try {
+        const res = await fetch("/api/tanks-map", { cache: "no-store" });
+        if (res.ok) {
+          const data = await res.json();
+          if (data.rows && data.rows.length === TH) {
+            setMapRows(data.rows, data.source === "deepseek" ? "deepseek" : "random");
+            setMapStatus(
+              `${data.source === "deepseek" ? "✨ AI" : "🎲 Случайная"} · v${BUILD}`
+            );
+            return;
+          }
+        }
+      } catch {
+        /* fallback */
+      }
+      const seed = (Date.now() % 2000000000) | 0;
+      setMapRows(proceduralMapClient(seed), "random");
+      setMapStatus(`🎲 Случайная · v${BUILD}`);
+      return;
+    }
+
+    setMapRows(levelRowsFromPack(selectedLevel), "level");
+    const title =
+      selectedLevel === 1 ? "1 — Классика" : `Уровень ${selectedLevel}`;
+    setMapStatus(`${title} / ${LEVEL_COUNT} · v${BUILD}`);
   }
 
   function parseLevel() {
@@ -332,10 +407,11 @@
       startBtn.disabled = true;
       startBtn.textContent = "Карта…";
     }
-    await fetchLevelMap();
+    await loadSelectedLevel();
     mapLoading = false;
     resetGame();
     playing = true;
+    if (levelSelect) levelSelect.disabled = true;
     frame?.classList.add("tanks-running");
     if (startBtn) {
       startBtn.disabled = true;
@@ -352,6 +428,8 @@
     playing = false;
     gameOver = true;
     won = didWin;
+    clearInput();
+    if (levelSelect) levelSelect.disabled = false;
     frame?.classList.remove("tanks-running");
     if (startBtn) {
       startBtn.disabled = false;
@@ -519,15 +597,15 @@
   }
 
   function updatePlayer() {
-    if (!player.alive) return;
+    if (!playing || gameOver || !player?.alive) return;
     if (player.invuln > 0) player.invuln--;
     if (player.shootCd > 0) player.shootCd--;
     const speed = 1.8;
-    if (keys.up) moveTank(player, 0, speed);
-    else if (keys.down) moveTank(player, 2, speed);
-    else if (keys.left) moveTank(player, 3, speed);
-    else if (keys.right) moveTank(player, 1, speed);
-    if (keys.fire) shoot(player, true);
+    if (input.up) moveTank(player, 0, speed);
+    else if (input.down) moveTank(player, 2, speed);
+    else if (input.left) moveTank(player, 3, speed);
+    else if (input.right) moveTank(player, 1, speed);
+    if (input.fire) shoot(player, true);
   }
 
   function updateEnemies() {
@@ -752,23 +830,30 @@
   }
 
   function setKey(code, down) {
-    if (!playing || gameOver) return;
-    if (code in keys) keys[code] = down;
+    if (code === "up") input.up = down;
+    else if (code === "down") input.down = down;
+    else if (code === "left") input.left = down;
+    else if (code === "right") input.right = down;
+    else if (code === "fire") input.fire = down;
   }
 
   document.querySelectorAll("[data-tanks]").forEach((btn) => {
     const action = btn.dataset.tanks;
     let touchFromPointer = false;
+
     const down = (e) => {
       if (e.cancelable) e.preventDefault();
+      e.stopPropagation();
       btn.classList.add("tanks-pad-active");
       setKey(action, true);
     };
     const up = (e) => {
       if (e.cancelable) e.preventDefault();
+      e.stopPropagation();
       btn.classList.remove("tanks-pad-active");
       setKey(action, false);
     };
+
     btn.addEventListener("pointerdown", (e) => {
       touchFromPointer = true;
       if (btn.setPointerCapture) btn.setPointerCapture(e.pointerId);
@@ -777,18 +862,42 @@
     btn.addEventListener("pointerup", up);
     btn.addEventListener("pointercancel", up);
     btn.addEventListener("lostpointercapture", up);
-    btn.addEventListener("touchstart", (e) => {
-      if (touchFromPointer) return;
-      down(e);
-    }, { passive: false });
-    btn.addEventListener("touchend", (e) => {
-      if (touchFromPointer) {
+    btn.addEventListener("pointerleave", (e) => {
+      if (e.pointerType === "mouse" && e.buttons === 0) up(e);
+    });
+    btn.addEventListener(
+      "touchstart",
+      (e) => {
+        if (touchFromPointer) return;
+        down(e);
+      },
+      { passive: false }
+    );
+    btn.addEventListener(
+      "touchend",
+      (e) => {
+        if (touchFromPointer) {
+          touchFromPointer = false;
+          return;
+        }
+        up(e);
+      },
+      { passive: false }
+    );
+    btn.addEventListener(
+      "touchcancel",
+      (e) => {
         touchFromPointer = false;
-        return;
-      }
-      up(e);
-    }, { passive: false });
+        up(e);
+      },
+      { passive: false }
+    );
   });
+
+  document.addEventListener("visibilitychange", () => {
+    if (document.hidden) clearInput();
+  });
+  window.addEventListener("blur", clearInput);
 
   document.addEventListener("keydown", (e) => {
     if (activeTab !== "tanks") return;
@@ -799,6 +908,7 @@
     if (e.key === " " || e.key === "z") setKey("fire", true);
   });
   document.addEventListener("keyup", (e) => {
+    if (activeTab !== "tanks") return;
     if (e.key === "ArrowUp") setKey("up", false);
     if (e.key === "ArrowDown") setKey("down", false);
     if (e.key === "ArrowLeft") setKey("left", false);
@@ -814,10 +924,30 @@
     }, { passive: false });
   }
 
+  fillLevelSelect();
   setupCanvas();
   levelRows = finalizeMapRows([...DEFAULT_LEVEL]);
   parseLevel();
   updateHud();
+  setMapStatus(`Уровень 1 / ${LEVEL_COUNT} · v${BUILD}`);
+  loadLevelsPack().then((ok) => {
+    if (ok) setMapStatus(`99 уровней · v${BUILD}`);
+  });
+  if (levelSelect) {
+    levelSelect.addEventListener("change", () => {
+      if (playing && !gameOver) return;
+      selectedLevel = getSelectedLevelNum();
+      if (selectedLevel > 0) {
+        loadLevelsPack().then(() => {
+          setMapRows(levelRowsFromPack(selectedLevel), "preview");
+          parseLevel();
+          const title =
+            selectedLevel === 1 ? "1 — Классика" : `Уровень ${selectedLevel}`;
+          setMapStatus(`${title} / ${LEVEL_COUNT} · v${BUILD}`);
+        });
+      }
+    });
+  }
   window.addEventListener("resize", setupCanvas);
   requestAnimationFrame(loop);
 })();
