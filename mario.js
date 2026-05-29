@@ -11,6 +11,9 @@
   const MOVE_SPEED = 3.2;
   const MAX_FALL = 11;
   const STOMP_BOUNCE = -7;
+  const MARIO_LEVEL_COUNT = 30;
+  const BUILD = window.ARCADE_BUILD || "dev";
+  const STORAGE_KEY = "aura_mario_unlocked";
 
   let dpr = 1;
   let viewW = 320;
@@ -24,10 +27,14 @@
   let playing = false;
   let gameOver = false;
   let wonFlag = false;
+  let campaignComplete = false;
+  let currentLevel = 1;
+  let levelClearTimer = 0;
   let lastStartAt = 0;
   let animTime = 0;
   const particles = [];
-  const keys = { left: false, right: false, jump: false };
+  const input = { left: false, right: false, jump: false };
+  const levelSelect = document.getElementById("marioLevelSelect");
 
   function groundOff() {
     return viewH - level.TH * TILE;
@@ -93,7 +100,37 @@
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   }
 
-  function buildLevel() {
+  function createRng(seed) {
+    let s = seed >>> 0;
+    return () => {
+      s = (s + 0x6d2b79f5) | 0;
+      let t = Math.imul(s ^ (s >>> 15), 1 | s);
+      t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+
+  function getMaxUnlocked() {
+    try {
+      const n = parseInt(localStorage.getItem(STORAGE_KEY) || "1", 10);
+      return Math.min(MARIO_LEVEL_COUNT, Math.max(1, Number.isFinite(n) ? n : 1));
+    } catch {
+      return 1;
+    }
+  }
+
+  function unlockLevel(n) {
+    const next = Math.min(MARIO_LEVEL_COUNT, Math.max(1, n));
+    if (next <= getMaxUnlocked()) return;
+    try {
+      localStorage.setItem(STORAGE_KEY, String(next));
+    } catch {
+      /* private mode */
+    }
+    fillLevelSelect();
+  }
+
+  function buildClassicLevel(levelNum) {
     const TW = 96;
     const TH = 13;
     const tiles = Array.from({ length: TH }, () => new Uint8Array(TW));
@@ -149,11 +186,170 @@
     }
     decor.push({ type: "castle", x: (TW - 5) * TILE });
 
-    const flagX = (TW - 4) * TILE;
-    const spawnX = 3 * TILE;
-    const spawnY = (TH - 4) * TILE - 18;
+    return {
+      tiles,
+      TW,
+      TH,
+      coins,
+      enemies,
+      decor,
+      flagX: (TW - 4) * TILE,
+      spawnX: 3 * TILE,
+      spawnY: (TH - 4) * TILE - 18,
+      levelNum,
+      theme: 0,
+    };
+  }
 
-    return { tiles, TW, TH, coins, enemies, decor, flagX, spawnX, spawnY };
+  function buildProceduralLevel(levelNum) {
+    const rng = createRng(levelNum * 9973);
+    const TH = 13;
+    const TW = Math.min(112, 68 + levelNum * 2);
+    const tiles = Array.from({ length: TH }, () => new Uint8Array(TW));
+    for (let x = 0; x < TW; x++) {
+      tiles[TH - 1][x] = 1;
+      tiles[TH - 2][x] = 1;
+    }
+
+    const addPlatform = (x, y, len, brick = false) => {
+      if (x < 6 || x + len > TW - 8) return;
+      const t = brick ? 2 : 1;
+      for (let i = 0; i < len; i++) {
+        if (y >= 0 && y < TH) tiles[y][x + i] = t;
+      }
+    };
+
+    const coins = [];
+    const placeCoins = (tx, ty, n) => {
+      for (let i = 0; i < n; i++) {
+        const cx = tx + i;
+        if (cx >= TW - 6) continue;
+        coins.push({
+          x: cx * TILE + TILE / 2,
+          y: ty * TILE + TILE / 2,
+          taken: false,
+        });
+      }
+    };
+
+    const platCount = 5 + Math.floor(levelNum / 2);
+    let px = 10;
+    for (let p = 0; p < platCount && px < TW - 14; p++) {
+      const gap = 3 + Math.floor(rng() * 5);
+      px += gap;
+      const len = 2 + Math.floor(rng() * 5);
+      const y = TH - 4 - Math.floor(rng() * (2 + Math.min(3, levelNum / 6)));
+      const brick = rng() < 0.22 + levelNum * 0.012;
+      addPlatform(px, y, len, brick);
+      if (rng() < 0.75) placeCoins(px, y - 1, Math.min(len, 2 + Math.floor(rng() * 3)));
+      if (rng() < 0.18 && px + 1 < TW - 8) {
+        tiles[y - 1][px + Math.floor(len / 2)] = 3;
+      }
+      px += len;
+    }
+
+    for (let x = 8; x < TW - 10; x += 4 + Math.floor(rng() * 3)) {
+      if (rng() < 0.45) placeCoins(x, TH - 5, 2);
+    }
+
+    const enemies = [];
+    const enemyN = Math.min(9, 1 + Math.floor(levelNum / 2));
+    for (let e = 0; e < enemyN; e++) {
+      const seg = 12 + Math.floor((rng() * (TW - 28)) | 0);
+      const patrol = 2 + Math.floor(rng() * 3);
+      const spd = 1.1 + levelNum * 0.04 + rng() * 0.35;
+      enemies.push({
+        x: seg * TILE,
+        y: (TH - 3) * TILE - 14,
+        w: 14,
+        h: 14,
+        vx: rng() < 0.5 ? -spd : spd,
+        min: (seg - patrol) * TILE,
+        max: (seg + patrol) * TILE,
+        dead: false,
+      });
+    }
+
+    const decor = [];
+    const decorN = Math.max(8, Math.floor(TW / 6));
+    for (let i = 0; i < decorN; i++) {
+      decor.push({
+        type: "hill",
+        x: i * (TW * TILE) / decorN + 16,
+        scale: 0.65 + (i % 4) * 0.12,
+      });
+      if (i % 2 === 0) {
+        decor.push({ type: "bush", x: i * (TW * TILE) / decorN + 40, yOff: 0 });
+      }
+    }
+    decor.push({ type: "castle", x: (TW - 5) * TILE });
+
+    return {
+      tiles,
+      TW,
+      TH,
+      coins,
+      enemies,
+      decor,
+      flagX: (TW - 4) * TILE,
+      spawnX: 3 * TILE,
+      spawnY: (TH - 4) * TILE - 18,
+      levelNum,
+      theme: (levelNum - 1) % 4,
+    };
+  }
+
+  function buildLevel(levelNum) {
+    const n = Math.max(1, Math.min(MARIO_LEVEL_COUNT, levelNum | 0));
+    if (n === 1) return buildClassicLevel(n);
+    return buildProceduralLevel(n);
+  }
+
+  function fillLevelSelect() {
+    if (!levelSelect) return;
+    const maxU = getMaxUnlocked();
+    const prev = levelSelect.value;
+    levelSelect.innerHTML = "";
+    for (let i = 1; i <= MARIO_LEVEL_COUNT; i++) {
+      const o = document.createElement("option");
+      o.value = String(i);
+      const locked = i > maxU;
+      o.textContent =
+        i === 1 ? `1 — Классика${locked ? " 🔒" : ""}` : `Уровень ${i}${locked ? " 🔒" : ""}`;
+      o.disabled = locked;
+      levelSelect.appendChild(o);
+    }
+    const pick = prev && parseInt(prev, 10) <= maxU ? prev : "1";
+    levelSelect.value = pick;
+  }
+
+  function setLevelStatus(text) {
+    const st = document.getElementById("marioStatus");
+    if (st && text) st.textContent = text;
+  }
+
+  function clearInput() {
+    input.left = false;
+    input.right = false;
+    input.jump = false;
+    document.querySelectorAll(".mario-pad-active").forEach((b) => {
+      b.classList.remove("mario-pad-active");
+    });
+  }
+
+  function beginLevel(levelNum, freshRun) {
+    currentLevel = levelNum;
+    level = buildLevel(levelNum);
+    particles.length = 0;
+    levelClearTimer = 0;
+    resetPlayer();
+    if (freshRun) {
+      coinsCollected = 0;
+      lives = 3;
+      campaignComplete = false;
+      wonFlag = false;
+    }
+    updateHud();
   }
 
   function tileAt(px, py) {
@@ -188,10 +384,43 @@
     const el = document.getElementById("marioCoins");
     const auraEl = document.getElementById("marioAura");
     const livesEl = document.getElementById("marioLives");
+    const lvlEl = document.getElementById("marioLevelHud");
     if (el) el.textContent = `${coinsCollected} 🪙`;
     if (auraEl) auraEl.textContent = `${aura} ✨`;
     if (livesEl) livesEl.textContent = "❤️".repeat(Math.max(0, lives));
-    setProgress("marioProgress", coinsCollected % 100, 100);
+    if (lvlEl) {
+      lvlEl.textContent = campaignComplete
+        ? `✅ ${MARIO_LEVEL_COUNT}/${MARIO_LEVEL_COUNT}`
+        : `Ур. ${currentLevel}/${MARIO_LEVEL_COUNT}`;
+    }
+    const levelProg = ((currentLevel - 1) / MARIO_LEVEL_COUNT) * 100;
+    const coinProg = (coinsCollected % 100) / 100;
+    setProgress("marioProgress", levelProg + coinProg * (100 / MARIO_LEVEL_COUNT), 100);
+  }
+
+  function completeLevel() {
+    if (levelClearTimer > 0) return;
+    unlockLevel(currentLevel + 1);
+    spawnParticles(level.flagX, player.y + player.h / 2, "coin", 18);
+
+    if (currentLevel >= MARIO_LEVEL_COUNT) {
+      campaignComplete = true;
+      wonFlag = true;
+      endGame(true, true);
+      return;
+    }
+
+    levelClearTimer = 120;
+    clearInput();
+    setLevelStatus(`🏁 Уровень ${currentLevel} пройден!`);
+    if (typeof burstParticles === "function") burstParticles(12);
+
+    window.setTimeout(() => {
+      if (!playing || gameOver) return;
+      beginLevel(currentLevel + 1, false);
+      setLevelStatus(`Уровень ${currentLevel} · до флага →`);
+      if (startBtn) startBtn.textContent = `Ур. ${currentLevel}…`;
+    }, 1300);
   }
 
   function startGame(e) {
@@ -202,47 +431,56 @@
     if (e?.cancelable) e.preventDefault();
     if (e) e.stopPropagation();
 
-    level = buildLevel();
-    particles.length = 0;
-    coinsCollected = 0;
-    lives = 3;
+    const selected = parseInt(levelSelect?.value || "1", 10) || 1;
+    const startAt = Math.min(selected, getMaxUnlocked());
+
     gameOver = false;
-    wonFlag = false;
+    campaignComplete = false;
     playing = true;
-    resetPlayer();
+    beginLevel(startAt, true);
     frame?.classList.add("mario-running");
     if (startBtn) {
       startBtn.disabled = true;
-      startBtn.textContent = "Игра идёт…";
+      startBtn.textContent = `Ур. ${currentLevel}…`;
     }
+    if (levelSelect) levelSelect.disabled = true;
     const st = document.getElementById("marioStatus");
     if (st) {
-      st.textContent = "Крупные кнопки внизу · удерживайте для движения";
+      st.textContent = `Кампания: уровень ${currentLevel} · к флагу`;
       st.classList.remove("win");
     }
     updateHud();
   }
 
-  function endGame(won) {
+  function endGame(won, allLevels = false) {
     playing = false;
     gameOver = true;
     wonFlag = won;
+    levelClearTimer = 0;
+    clearInput();
     frame?.classList.remove("mario-running");
     if (startBtn) {
       startBtn.disabled = false;
       startBtn.textContent = "🔄 Снова";
     }
+    if (levelSelect) levelSelect.disabled = false;
     const st = document.getElementById("marioStatus");
     if (st) {
       const aura = Math.floor(coinsCollected / 100);
-      st.textContent = won
-        ? `🏁 Финиш! +${aura} ✨ возможно`
-        : lives <= 0
-          ? "Партия окончена"
-          : "Партия окончена";
-      st.classList.toggle("win", won || aura > 0);
+      if (allLevels) {
+        st.textContent = `🎉 Все ${MARIO_LEVEL_COUNT} уровней! ${coinsCollected} 🪙`;
+      } else if (won) {
+        st.textContent = `🏁 Финиш! ${coinsCollected} 🪙 · ~${aura} ✨`;
+      } else {
+        st.textContent =
+          lives <= 0
+            ? `Партия окончена · ур. ${currentLevel} · ${coinsCollected} 🪙`
+            : "Партия окончена";
+      }
+      st.classList.toggle("win", won || aura > 0 || allLevels);
     }
     if (typeof setMarioResult === "function") setMarioResult(coinsCollected);
+    updateHud();
   }
 
   function collectCoins() {
@@ -260,10 +498,15 @@
   }
 
   function movePlayer() {
-    if (keys.left) {
+    if (levelClearTimer > 0) {
+      levelClearTimer--;
+      return;
+    }
+
+    if (input.left) {
       player.vx = -MOVE_SPEED;
       player.face = -1;
-    } else if (keys.right) {
+    } else if (input.right) {
       player.vx = MOVE_SPEED;
       player.face = 1;
     } else {
@@ -271,7 +514,7 @@
       if (Math.abs(player.vx) < 0.15) player.vx = 0;
     }
 
-    if (keys.jump && player.grounded) {
+    if (input.jump && player.grounded) {
       player.vy = JUMP_V;
       player.grounded = false;
     }
@@ -316,8 +559,8 @@
 
     collectCoins();
 
-    if (player.x + player.w >= level.flagX) {
-      endGame(true);
+    if (player.x + player.w * 0.6 >= level.flagX) {
+      completeLevel();
     }
   }
 
@@ -377,11 +620,19 @@
 
   function drawBackground(t) {
     const go = level ? groundOff() : viewH * 0.35;
+    const theme = level?.theme ?? 0;
+    const palettes = [
+      ["#4a7fd4", "#6eb4ff", "#9ed4ff", "#c8ecff"],
+      ["#3a5a9a", "#6888cc", "#98b8e8", "#c0d8f8"],
+      ["#c87840", "#e8a060", "#f0c888", "#ffe8c0"],
+      ["#284868", "#407090", "#6098b8", "#88c0d8"],
+    ];
+    const pal = palettes[theme] || palettes[0];
     const sky = ctx.createLinearGradient(0, 0, 0, viewH);
-    sky.addColorStop(0, "#4a7fd4");
-    sky.addColorStop(0.45, "#6eb4ff");
-    sky.addColorStop(0.75, "#9ed4ff");
-    sky.addColorStop(1, "#c8ecff");
+    sky.addColorStop(0, pal[0]);
+    sky.addColorStop(0.45, pal[1]);
+    sky.addColorStop(0.75, pal[2]);
+    sky.addColorStop(1, pal[3]);
     ctx.fillStyle = sky;
     ctx.fillRect(0, 0, viewW, viewH);
 
@@ -712,8 +963,30 @@
     }
   }
 
+  function drawLevelClearBanner() {
+    if (levelClearTimer <= 0) return;
+    ctx.fillStyle = "rgba(8, 12, 32, 0.55)";
+    ctx.fillRect(0, viewH * 0.32, viewW, 56);
+    ctx.font = "bold 16px system-ui, sans-serif";
+    ctx.textAlign = "center";
+    ctx.fillStyle = "#ffd250";
+    ctx.fillText(`Уровень ${currentLevel} ✓`, viewW / 2, viewH * 0.36 + 12);
+    ctx.font = "12px system-ui, sans-serif";
+    ctx.fillStyle = "#e8e8ff";
+    const next = currentLevel + 1;
+    ctx.fillText(
+      next <= MARIO_LEVEL_COUNT ? `Далее: ${next}` : "Финал!",
+      viewW / 2,
+      viewH * 0.36 + 30
+    );
+  }
+
   function drawOverlay() {
-    if (playing) return;
+    if (playing && levelClearTimer <= 0) return;
+    if (playing && levelClearTimer > 0) {
+      drawLevelClearBanner();
+      return;
+    }
     const g = ctx.createRadialGradient(viewW / 2, viewH / 2, 20, viewW / 2, viewH / 2, viewW * 0.6);
     g.addColorStop(0, "rgba(20, 16, 48, 0.75)");
     g.addColorStop(1, "rgba(8, 6, 24, 0.88)");
@@ -724,9 +997,14 @@
     ctx.textBaseline = "middle";
     ctx.fillStyle = "#ffd250";
     ctx.fillText(gameOver ? "🔄 Снова" : "▶ Старт", viewW / 2, viewH / 2 - 12);
-    ctx.font = "14px system-ui, sans-serif";
+    ctx.font = "13px system-ui, sans-serif";
     ctx.fillStyle = "rgba(255,255,255,0.9)";
-    ctx.fillText("1 ✨ за 100 🪙", viewW / 2, viewH / 2 + 14);
+    ctx.fillText(
+      `${MARIO_LEVEL_COUNT} уровней · открыто ${getMaxUnlocked()}`,
+      viewW / 2,
+      viewH / 2 + 12
+    );
+    ctx.fillText("1 ✨ за 100 🪙", viewW / 2, viewH / 2 + 28);
     ctx.font = "28px serif";
     ctx.fillText("🍄", viewW / 2, viewH / 2 - 42);
   }
@@ -753,7 +1031,7 @@
 
     if (playing && !gameOver && player) {
       if (player.invuln > 0) player.invuln--;
-      movePlayer();
+      if (levelClearTimer <= 0) movePlayer();
       updateEnemies();
       updateCamera();
       updateParticles();
@@ -766,10 +1044,9 @@
   }
 
   function setKey(code, down) {
-    if (!playing || gameOver) return;
-    if (code === "left") keys.left = down;
-    if (code === "right") keys.right = down;
-    if (code === "jump") keys.jump = down;
+    if (code === "left") input.left = down;
+    else if (code === "right") input.right = down;
+    else if (code === "jump") input.jump = down;
   }
 
   document.addEventListener("keydown", (e) => {
@@ -779,10 +1056,16 @@
     if (e.key === "ArrowUp" || e.key === " " || e.key === "w") setKey("jump", true);
   });
   document.addEventListener("keyup", (e) => {
+    if (activeTab !== "mario") return;
     if (e.key === "ArrowLeft" || e.key === "a") setKey("left", false);
     if (e.key === "ArrowRight" || e.key === "d") setKey("right", false);
     if (e.key === "ArrowUp" || e.key === " " || e.key === "w") setKey("jump", false);
   });
+
+  document.addEventListener("visibilitychange", () => {
+    if (document.hidden) clearInput();
+  });
+  window.addEventListener("blur", clearInput);
 
   document.querySelectorAll("[data-mario]").forEach((btn) => {
     const action = btn.dataset.mario;
@@ -790,11 +1073,13 @@
 
     const down = (e) => {
       if (e.cancelable) e.preventDefault();
+      e.stopPropagation();
       btn.classList.add("mario-pad-active");
       setKey(action, true);
     };
     const up = (e) => {
       if (e.cancelable) e.preventDefault();
+      e.stopPropagation();
       btn.classList.remove("mario-pad-active");
       setKey(action, false);
     };
@@ -844,9 +1129,23 @@
     );
   }
 
-  level = buildLevel();
+  fillLevelSelect();
+  beginLevel(1, true);
   setupMarioCanvas();
   updateHud();
+  setLevelStatus(`${MARIO_LEVEL_COUNT} уровней · открыто ${getMaxUnlocked()} · v${BUILD}`);
+  if (levelSelect) {
+    levelSelect.addEventListener("change", () => {
+      if (playing && !gameOver) return;
+      const n = parseInt(levelSelect.value, 10) || 1;
+      if (n > getMaxUnlocked()) {
+        levelSelect.value = String(getMaxUnlocked());
+        return;
+      }
+      beginLevel(n, true);
+      setLevelStatus(`Превью: уровень ${n} / ${MARIO_LEVEL_COUNT}`);
+    });
+  }
   window.addEventListener("resize", setupMarioCanvas);
   requestAnimationFrame(loop);
 })();

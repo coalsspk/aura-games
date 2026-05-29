@@ -230,7 +230,42 @@ body::after {
   display: none;
 }
 
+.mario-level-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  max-width: min(340px, 96vw);
+  margin: 4px auto 2px;
+  padding: 0 8px;
+}
+
+.mario-level-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  opacity: 0.85;
+  white-space: nowrap;
+}
+
+.mario-level-select {
+  flex: 1;
+  min-width: 0;
+  max-width: 220px;
+  padding: 6px 8px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 210, 80, 0.35);
+  background: rgba(12, 8, 28, 0.95);
+  color: var(--text);
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.mario-level-select:disabled {
+  opacity: 0.55;
+}
+
 #mario .mario-controls {
+  touch-action: none;
   display: flex;
   flex-direction: column;
   gap: 12px;

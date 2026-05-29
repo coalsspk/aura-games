@@ -8,9 +8,9 @@
   <meta http-equiv="Pragma" content="no-cache" />
   <meta http-equiv="Expires" content="0" />
   <title>Aura Games</title>
-  <script>window.ARCADE_BUILD="20260529-4";</script>
+  <script>window.ARCADE_BUILD="20260529-5";</script>
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
-  <link rel="stylesheet" href="style.css?v=20260529-4" />
+  <link rel="stylesheet" href="style.css?v=20260529-5" />
 </head>
 <body>
   <div id="particles" class="particles" aria-hidden="true"></div>
@@ -86,7 +86,13 @@
         <span id="marioAura">0 ✨</span>
         ·
         <span id="marioLives">❤️❤️❤️</span>
+        ·
+        <span id="marioLevelHud">Ур. 1/30</span>
       </p>
+      <div class="mario-level-row">
+        <label class="mario-level-label" for="marioLevelSelect">Старт с уровня</label>
+        <select id="marioLevelSelect" class="mario-level-select" aria-label="Выбор уровня"></select>
+      </div>
       <div class="mario-controls" aria-label="Управление">
         <button type="button" class="mario-pad mario-pad-jump" data-mario="jump" aria-label="Прыжок">
           <span class="mario-pad-icon" aria-hidden="true">⬆</span>
@@ -104,7 +110,7 @@
         </div>
       </div>
       <p id="marioStatus" class="status-badge">Нажмите «Старт»</p>
-      <p class="hint">Дойдите до флага · 100 🪙 = 1 ✨ ауры</p>
+      <p class="hint">Кампания: флаг → следующий уровень · 100 🪙 = 1 ✨</p>
     </section>
 
     <section id="tanks" class="panel">
@@ -195,9 +201,9 @@
     <p class="hint small">Награда начисляется в чате Aura · лимит партий в сутки</p>
   </footer>
 
-  <script src="app.js?v=20260529-4"></script>
-  <script src="mario.js?v=20260529-4"></script>
-  <script src="poker.js?v=20260529-4"></script>
-  <script src="tanks.js?v=20260529-4"></script>
+  <script src="app.js?v=20260529-5"></script>
+  <script src="mario.js?v=20260529-5"></script>
+  <script src="poker.js?v=20260529-5"></script>
+  <script src="tanks.js?v=20260529-5"></script>
 </body>
 </html>
