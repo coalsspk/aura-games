@@ -217,7 +217,7 @@
     }
     const st = document.getElementById("marioStatus");
     if (st) {
-      st.textContent = "◀ ▶ — ходьба · ⬆ — прыжок";
+      st.textContent = "Крупные кнопки внизу · удерживайте для движения";
       st.classList.remove("win");
     }
     updateHud();
@@ -786,19 +786,50 @@
 
   document.querySelectorAll("[data-mario]").forEach((btn) => {
     const action = btn.dataset.mario;
+    let touchFromPointer = false;
+
     const down = (e) => {
-      e.preventDefault();
+      if (e.cancelable) e.preventDefault();
+      btn.classList.add("mario-pad-active");
       setKey(action, true);
     };
     const up = (e) => {
-      e.preventDefault();
+      if (e.cancelable) e.preventDefault();
+      btn.classList.remove("mario-pad-active");
       setKey(action, false);
     };
-    btn.addEventListener("pointerdown", down);
+
+    btn.addEventListener("pointerdown", (e) => {
+      touchFromPointer = true;
+      if (btn.setPointerCapture) btn.setPointerCapture(e.pointerId);
+      down(e);
+    });
     btn.addEventListener("pointerup", up);
-    btn.addEventListener("pointerleave", up);
-    btn.addEventListener("touchstart", down, { passive: false });
-    btn.addEventListener("touchend", up, { passive: false });
+    btn.addEventListener("pointercancel", up);
+    btn.addEventListener("lostpointercapture", up);
+    btn.addEventListener("pointerleave", (e) => {
+      if (e.pointerType === "mouse" && e.buttons === 0) up(e);
+    });
+    btn.addEventListener(
+      "touchstart",
+      (e) => {
+        if (touchFromPointer) return;
+        down(e);
+      },
+      { passive: false }
+    );
+    btn.addEventListener(
+      "touchend",
+      (e) => {
+        if (touchFromPointer) {
+          touchFromPointer = false;
+          return;
+        }
+        up(e);
+      },
+      { passive: false }
+    );
+    btn.addEventListener("touchcancel", up, { passive: false });
   });
 
   if (startBtn) {

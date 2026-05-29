@@ -190,37 +190,105 @@ body::after {
   display: none;
 }
 
-.mario-controls {
+#mario .mario-controls {
   display: flex;
-  gap: 10px;
-  justify-content: center;
-  max-width: 320px;
-  margin: 8px auto 4px;
+  flex-direction: column;
+  gap: 12px;
+  width: 100%;
+  max-width: min(360px, 96vw);
+  margin: 12px auto 8px;
+  padding: 12px 10px max(14px, env(safe-area-inset-bottom));
+  border-radius: 18px;
+  background: rgba(12, 8, 28, 0.88);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 -4px 24px rgba(0, 0, 0, 0.35);
+  position: sticky;
+  bottom: 0;
+  z-index: 20;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.mario-controls-row {
+  display: flex;
+  gap: 12px;
+  width: 100%;
 }
 
 .mario-pad {
   flex: 1;
-  max-width: 96px;
-  padding: 14px 8px;
-  font-size: 1.35rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  min-height: 72px;
+  min-width: 0;
+  padding: 12px 10px;
   border: none;
-  border-radius: 14px;
-  background: linear-gradient(180deg, rgba(80, 60, 140, 0.9), rgba(50, 35, 90, 0.95));
+  border-radius: 16px;
+  background: linear-gradient(180deg, rgba(90, 70, 150, 0.95), rgba(45, 32, 85, 0.98));
   color: var(--text);
   cursor: pointer;
   touch-action: manipulation;
-  box-shadow: 0 4px 0 rgba(0, 0, 0, 0.35);
+  box-shadow: 0 5px 0 rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.12);
   user-select: none;
+  -webkit-user-select: none;
 }
 
-.mario-pad:active {
-  transform: translateY(3px);
-  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.35);
+.mario-pad-icon {
+  display: block;
+  font-size: clamp(2rem, 8vw, 2.6rem);
+  line-height: 1;
+  pointer-events: none;
+}
+
+.mario-pad-label {
+  display: block;
+  font-size: clamp(0.72rem, 3.2vw, 0.85rem);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  opacity: 0.92;
+  pointer-events: none;
+}
+
+.mario-pad-jump {
+  min-height: 80px;
+  width: 100%;
+  background: linear-gradient(180deg, #e8b830 0%, #a87818 100%);
+  color: #1a0a08;
+  box-shadow: 0 5px 0 #6b4810, inset 0 1px 0 rgba(255, 255, 255, 0.35);
+}
+
+.mario-pad-jump .mario-pad-label {
+  opacity: 0.85;
+}
+
+.mario-pad-dir {
+  min-height: 76px;
+}
+
+.mario-pad:active,
+.mario-pad.mario-pad-active {
+  transform: translateY(4px);
+  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.4);
+  filter: brightness(1.06);
+}
+
+.mario-pad-jump:active,
+.mario-pad-jump.mario-pad-active {
+  box-shadow: 0 1px 0 #6b4810;
+}
+
+.mario-frame {
+  background: linear-gradient(180deg, rgba(94, 148, 252, 0.35), rgba(20, 12, 40, 0.5));
 }
 
 .mario-frame canvas {
   display: block;
   border-radius: 14px;
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
 }
 
 .game-frame::before {

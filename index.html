@@ -77,9 +77,20 @@
         <span id="marioLives">❤️❤️❤️</span>
       </p>
       <div class="mario-controls" aria-label="Управление">
-        <button type="button" class="mario-pad" data-mario="left">◀</button>
-        <button type="button" class="mario-pad" data-mario="jump">⬆</button>
-        <button type="button" class="mario-pad" data-mario="right">▶</button>
+        <button type="button" class="mario-pad mario-pad-jump" data-mario="jump" aria-label="Прыжок">
+          <span class="mario-pad-icon" aria-hidden="true">⬆</span>
+          <span class="mario-pad-label">Прыжок</span>
+        </button>
+        <div class="mario-controls-row">
+          <button type="button" class="mario-pad mario-pad-dir" data-mario="left" aria-label="Влево">
+            <span class="mario-pad-icon" aria-hidden="true">◀</span>
+            <span class="mario-pad-label">Влево</span>
+          </button>
+          <button type="button" class="mario-pad mario-pad-dir" data-mario="right" aria-label="Вправо">
+            <span class="mario-pad-icon" aria-hidden="true">▶</span>
+            <span class="mario-pad-label">Вправо</span>
+          </button>
+        </div>
       </div>
       <p id="marioStatus" class="status-badge">Нажмите «Старт»</p>
       <p class="hint">Дойдите до флага · 100 🪙 = 1 ✨ ауры</p>
