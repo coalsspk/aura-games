@@ -111,11 +111,24 @@ function setupCanvas(canvas) {
   ];
   let food = [6, 5];
   let score = 0;
-  let alive = true;
+  let started = false;
+  let alive = false;
   let steps = 0;
   let lastTick = 0;
   const TICK_MS = 220;
   const particles = [];
+  const startBtn = document.getElementById("snakeStartBtn");
+
+  function updateStartBtn() {
+    if (!startBtn) return;
+    if (alive) {
+      startBtn.disabled = true;
+      startBtn.textContent = "Игра идёт…";
+    } else {
+      startBtn.disabled = false;
+      startBtn.textContent = started || score > 0 || steps > 0 ? "🔄 Снова" : "▶ Старт";
+    }
+  }
 
   function randFood() {
     do {
@@ -225,18 +238,61 @@ function setupCanvas(canvas) {
     }
   }
 
+  function resetGame() {
+    dir = [0, 1];
+    nextDir = [0, 1];
+    body = [
+      [3, 3],
+      [3, 2],
+      [3, 1],
+    ];
+    score = 0;
+    steps = 0;
+    particles.length = 0;
+    randFood();
+    document.getElementById("snakeScore").textContent = `0 / ${SNAKE_WIN} ✨`;
+    setProgress("snakeProgress", 0, SNAKE_WIN);
+    const st = document.getElementById("snakeStatus");
+    if (st) {
+      st.textContent = "Свайп или стрелки";
+      st.classList.remove("win");
+    }
+  }
+
+  function startGame() {
+    if (alive) return;
+    resetGame();
+    started = true;
+    alive = true;
+    lastTick = performance.now();
+    updateStartBtn();
+  }
+
   function endGame(won) {
     alive = false;
+    started = false;
     const st = document.getElementById("snakeStatus");
     if (st) {
       st.textContent = won ? "🎉 Победа!" : "Партия окончена";
       st.classList.toggle("win", won);
     }
+    updateStartBtn();
     setResult("snake", won, score);
   }
 
+  function drawStartOverlay() {
+    if (alive) return;
+    ctx.fillStyle = "rgba(10, 8, 24, 0.5)";
+    ctx.fillRect(0, 0, size, size);
+    ctx.fillStyle = "#e8e0ff";
+    ctx.font = `600 ${Math.round(cell * 0.55)}px system-ui, sans-serif`;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText(started || score > 0 || steps > 0 ? "Снова" : "Старт", size / 2, size / 2);
+  }
+
   function tick() {
-    if (!alive || activeTab !== "snake") return;
+    if (!alive || !started || activeTab !== "snake") return;
     dir = nextDir;
     steps++;
     const nx = body[0][0] + dir[0];
@@ -262,9 +318,10 @@ function setupCanvas(canvas) {
 
   function loop(t) {
     drawGrid();
-    drawFood(t);
+    if (alive) drawFood(t);
     drawSnake();
     drawParticles();
+    drawStartOverlay();
     for (let i = particles.length - 1; i >= 0; i--) {
       const p = particles[i];
       p.x += p.vx;
@@ -281,7 +338,7 @@ function setupCanvas(canvas) {
   }
 
   function setDirection(dx, dy) {
-    if (!alive) return;
+    if (!alive || !started) return;
     if (dx === -dir[0] && dy === -dir[1]) return;
     nextDir = [dx, dy];
   }
@@ -313,6 +370,8 @@ function setupCanvas(canvas) {
     { passive: true }
   );
 
+  if (startBtn) startBtn.addEventListener("click", startGame);
+  updateStartBtn();
   window.addEventListener("resize", () => setupCanvas(canvas));
   requestAnimationFrame(loop);
 })();
