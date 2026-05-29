@@ -33,6 +33,10 @@
       <span class="tab-icon">🍄</span>
       <span class="tab-label">Марио</span>
     </button>
+    <button type="button" data-tab="poker">
+      <span class="tab-icon">🃏</span>
+      <span class="tab-label">Покер</span>
+    </button>
   </nav>
 
   <main>
@@ -96,6 +100,17 @@
       <p class="hint">Дойдите до флага · 100 🪙 = 1 ✨ ауры</p>
     </section>
 
+    <section id="poker" class="panel">
+      <div class="poker-table">
+        <div class="poker-top">◆ AURA POKER ◆</div>
+        <p id="pokerHands" class="score">Раздача 0 / 5</p>
+        <div id="pokerCards" class="poker-cards" aria-label="Ваши карты"></div>
+        <p id="pokerStatus" class="status-badge">Нажмите «Раздать»</p>
+        <button type="button" id="pokerDealBtn" class="btn poker-deal-btn">🃏 Раздать</button>
+        <p id="pokerMsg" class="hint">5 раздач · пара+ — очки ауры</p>
+      </div>
+    </section>
+
     <section id="slots" class="panel">
       <div class="slots-machine">
         <div class="slots-top">◆ AURA CASINO ◆</div>
@@ -117,5 +132,6 @@
 
   <script src="app.js"></script>
   <script src="mario.js"></script>
+  <script src="poker.js"></script>
 </body>
 </html>
