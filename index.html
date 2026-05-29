@@ -37,6 +37,10 @@
       <span class="tab-icon">🃏</span>
       <span class="tab-label">Покер</span>
     </button>
+    <button type="button" data-tab="tanks">
+      <span class="tab-icon">🎮</span>
+      <span class="tab-label">Танки</span>
+    </button>
   </nav>
 
   <main>
@@ -100,6 +104,49 @@
       <p class="hint">Дойдите до флага · 100 🪙 = 1 ✨ ауры</p>
     </section>
 
+    <section id="tanks" class="panel">
+      <div id="tanksFrame" class="game-frame tanks-frame">
+        <canvas id="tanksCanvas" width="208" height="208"></canvas>
+        <button type="button" id="tanksStartBtn" class="btn primary snake-start-btn">▶ Старт</button>
+      </div>
+      <div class="progress-wrap" aria-hidden="true">
+        <div id="tanksProgress" class="progress-bar"></div>
+      </div>
+      <p class="score">
+        <span id="tanksScore">—</span>
+        ·
+        <span id="tanksLives">❤️❤️❤️</span>
+        ·
+        <span id="tanksEnemies">🎯 12</span>
+      </p>
+      <div class="tanks-controls" aria-label="Управление танком">
+        <button type="button" class="tanks-pad tanks-pad-up" data-tanks="up" aria-label="Вверх">
+          <span class="tanks-pad-icon">⬆</span>
+          <span class="tanks-pad-label">Вверх</span>
+        </button>
+        <div class="tanks-controls-row">
+          <button type="button" class="tanks-pad tanks-pad-dir" data-tanks="left" aria-label="Влево">
+            <span class="tanks-pad-icon">◀</span>
+            <span class="tanks-pad-label">Влево</span>
+          </button>
+          <button type="button" class="tanks-pad tanks-pad-fire" data-tanks="fire" aria-label="Огонь">
+            <span class="tanks-pad-icon">🔥</span>
+            <span class="tanks-pad-label">Огонь</span>
+          </button>
+          <button type="button" class="tanks-pad tanks-pad-dir" data-tanks="right" aria-label="Вправо">
+            <span class="tanks-pad-icon">▶</span>
+            <span class="tanks-pad-label">Вправо</span>
+          </button>
+        </div>
+        <button type="button" class="tanks-pad tanks-pad-down" data-tanks="down" aria-label="Вниз">
+          <span class="tanks-pad-icon">⬇</span>
+          <span class="tanks-pad-label">Вниз</span>
+        </button>
+      </div>
+      <p id="tanksStatus" class="status-badge">Нажмите «Старт»</p>
+      <p class="hint">12 врагов · орёл внизу · 14 ✨ (база цела — 18 ✨)</p>
+    </section>
+
     <section id="poker" class="panel">
       <div class="poker-table" id="pokerTable">
         <div class="poker-table-glow" aria-hidden="true"></div>
@@ -143,5 +190,6 @@
   <script src="app.js"></script>
   <script src="mario.js"></script>
   <script src="poker.js"></script>
+  <script src="tanks.js"></script>
 </body>
 </html>
