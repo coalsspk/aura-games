@@ -264,7 +264,7 @@
     if (best >= 8) return { won: true, kind: "poker_royal", pts: 22, label: "Роял / стрит-флеш" };
     if (best >= 6) return { won: true, kind: "poker_full", pts: 18, label: "Фул-хаус или каре" };
     if (best >= 4) return { won: true, kind: "poker_strong", pts: 14, label: "Стрит или флеш" };
-    if (best >= 3) return { won: true, kind: "poker", pts: 12, label: "Тройка" };
+    if (best >= 3) return { won: true, kind: "poker", pts: 10, label: "Тройка" };
     if (best >= 2 || wins >= 2) return { won: true, kind: "poker", pts: 10, label: "Две пары+" };
     if (wins >= 1) return { won: true, kind: "poker_pair", pts: 6, label: "Пара" };
     return { won: false, kind: "poker", pts: 0, label: "" };

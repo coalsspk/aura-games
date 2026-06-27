@@ -751,6 +751,25 @@ canvas {
   color: #9fffb8;
 }
 
+.result-banner {
+  margin: 0 auto 8px;
+  max-width: 460px;
+  padding: 10px 14px;
+  border-radius: 16px;
+  border: 1px solid rgba(255, 210, 80, 0.35);
+  background: linear-gradient(135deg, rgba(80, 45, 125, 0.78), rgba(20, 15, 40, 0.88));
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.25);
+  color: #fff;
+  font-size: 0.9rem;
+  font-weight: 700;
+  text-align: center;
+}
+
+.result-banner.win {
+  border-color: rgba(94, 232, 138, 0.65);
+  background: linear-gradient(135deg, rgba(35, 96, 70, 0.82), rgba(20, 15, 40, 0.9));
+}
+
 /* --- Покер --- */
 .poker-table {
   position: relative;

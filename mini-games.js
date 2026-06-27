@@ -30,7 +30,11 @@
     indycat: "🐱 Инди кот",
     blocks: "🧱 Блоки",
     royal: "👑 Royal Kingdom",
+    zodiac_tapper: "♈ Зодиак таппер",
   };
+
+  const ZODIAC_SIGNS = ["♈", "♉", "♊", "♋", "♌", "♍", "♎", "♏", "♐", "♑", "♒", "♓"];
+  const ZODIAC_REWARD = 1000;
 
   const PAD_GAMES = new Set(["dash", "blocks"]);
 
@@ -246,6 +250,19 @@
         spawnRoyalTile();
         spawnRoyalTile();
         break;
+      case "zodiac_tapper":
+        state.score = 0;
+        state.need = 5;
+        state.misses = 0;
+        state.maxMisses = 3;
+        state.roundMs = 1250;
+        state.targetLeft = 850;
+        state.nextTargetIn = 250;
+        state.target = -1;
+        state.rotation = 0;
+        state.spin = 0.0028;
+        state.hitFlash = 0;
+        break;
       default:
         break;
     }
@@ -384,6 +401,27 @@
           }
         }
         break;
+      case "zodiac_tapper":
+        state.rotation += dt * state.spin;
+        if (state.target >= 0) {
+          state.targetLeft -= dt;
+          if (state.targetLeft <= 0) {
+            state.misses++;
+            state.target = -1;
+            state.nextTargetIn = 260;
+            state.hitFlash = 160;
+            if (state.misses >= state.maxMisses) finish(false, state.score, "zodiac_tapper");
+          }
+        } else {
+          state.nextTargetIn -= dt;
+          if (state.nextTargetIn <= 0) {
+            state.target = (Math.random() * ZODIAC_SIGNS.length) | 0;
+            state.targetLeft = Math.max(520, state.roundMs - state.score * 90);
+            state.nextTargetIn = 0;
+          }
+        }
+        if (state.hitFlash > 0) state.hitFlash -= dt;
+        break;
       default:
         break;
     }
@@ -475,6 +513,9 @@
         break;
       case "royal":
         drawRoyal();
+        break;
+      case "zodiac_tapper":
+        drawZodiacTapper();
         break;
       default:
         drawBg("#1a1428", "#0a0618");
@@ -761,8 +802,152 @@
     ctx.fillText(`До ${state.need} · тап двух одинаковых соседних`, W / 2, H - 8);
   }
 
+  function drawZodiacTapper() {
+    const cx = W / 2;
+    const cy = H / 2;
+    const rOuter = W * 0.43;
+    const rInner = W * 0.26;
+    drawBg("#08061a", "#151033");
+    for (let i = 0; i < 42; i++) {
+      const a = (i * 2.399 + animT * 0.00008) % (Math.PI * 2);
+      const rr = 16 + ((i * 37) % Math.floor(rOuter + 40));
+      const x = cx + Math.cos(a) * rr;
+      const y = cy + Math.sin(a) * rr;
+      ctx.fillStyle = i % 3 ? "rgba(255,255,255,0.7)" : "rgba(255,210,80,0.85)";
+      ctx.beginPath();
+      ctx.arc(x, y, i % 5 === 0 ? 1.6 : 1, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    ctx.save();
+    ctx.translate(cx, cy);
+    ctx.rotate(state.rotation);
+    const halo = ctx.createRadialGradient(0, 0, rInner * 0.3, 0, 0, rOuter);
+    halo.addColorStop(0, "rgba(255,255,255,0.08)");
+    halo.addColorStop(0.58, "rgba(85,180,255,0.16)");
+    halo.addColorStop(1, "rgba(255,210,80,0.18)");
+    ctx.fillStyle = halo;
+    ctx.beginPath();
+    ctx.arc(0, 0, rOuter, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.strokeStyle = "rgba(255,210,80,0.92)";
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.arc(0, 0, rOuter, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.lineWidth = 1.2;
+    for (const rr of [rOuter * 0.86, rInner, rInner * 0.58]) {
+      ctx.strokeStyle = rr === rInner ? "rgba(255,255,255,0.42)" : "rgba(255,210,80,0.36)";
+      ctx.beginPath();
+      ctx.arc(0, 0, rr, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+
+    for (let i = 0; i < ZODIAC_SIGNS.length; i++) {
+      const a = (Math.PI * 2 * i) / ZODIAC_SIGNS.length - Math.PI / 2;
+      const x = Math.cos(a) * (rOuter * 0.73);
+      const y = Math.sin(a) * (rOuter * 0.73);
+      const isTarget = i === state.target;
+      const blink = isTarget && Math.sin(animT * 0.03) > -0.18;
+      if (blink) {
+        ctx.fillStyle = "rgba(255,236,135,0.38)";
+        ctx.beginPath();
+        ctx.arc(x, y, 22 + Math.sin(animT * 0.035) * 4, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.fillStyle = blink ? "#fff8bd" : "rgba(255,255,255,0.88)";
+      ctx.font = `${blink ? "bold " : ""}${Math.max(23, W * 0.085)}px Georgia,serif`;
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText(ZODIAC_SIGNS[i], x, y);
+    }
+
+    ctx.strokeStyle = "rgba(255,255,255,0.24)";
+    ctx.lineWidth = 1;
+    for (let i = 0; i < 6; i++) {
+      const a = (Math.PI * 2 * i) / 6 + Math.PI / 6;
+      ctx.beginPath();
+      ctx.moveTo(Math.cos(a) * (rInner * 0.3), Math.sin(a) * (rInner * 0.3));
+      ctx.lineTo(Math.cos(a) * (rInner * 0.96), Math.sin(a) * (rInner * 0.96));
+      ctx.stroke();
+    }
+    ctx.restore();
+
+    ctx.fillStyle = "rgba(0,0,0,0.34)";
+    ctx.beginPath();
+    ctx.roundRect(18, 12, W - 36, 58, 18);
+    ctx.fill();
+    ctx.fillStyle = "#fff";
+    ctx.font = "bold 14px system-ui,sans-serif";
+    ctx.textAlign = "center";
+    ctx.fillText(`Поймано ${state.score}/${state.need} · промахи ${state.misses}/${state.maxMisses}`, cx, 34);
+    ctx.fillStyle = "#ffd250";
+    ctx.font = "12px system-ui,sans-serif";
+    ctx.fillText(`Победа: +${ZODIAC_REWARD} ✨ = 1 ₽`, cx, 54);
+
+    if (state.target >= 0) {
+      ctx.fillStyle = "rgba(255,210,80,0.92)";
+      const w = (W - 52) * Math.max(0, state.targetLeft / Math.max(1, state.roundMs));
+      ctx.beginPath();
+      ctx.roundRect(26, H - 28, w, 7, 5);
+      ctx.fill();
+      ctx.fillStyle = "#fff6c0";
+      ctx.font = "bold 13px system-ui,sans-serif";
+      ctx.fillText(`Тапните: ${ZODIAC_SIGNS[state.target]}`, cx, H - 42);
+    } else {
+      ctx.fillStyle = "#cdb8ff";
+      ctx.font = "12px system-ui,sans-serif";
+      ctx.fillText("Ждите вспышку знака", cx, H - 36);
+    }
+  }
+
   function inRect(cx, cy, r) {
     return cx >= r.x && cx <= r.x + r.w && cy >= r.y && cy <= r.y + r.h;
+  }
+
+  function indyAdjacent(a, b) {
+    const ax = a % 5;
+    const ay = Math.floor(a / 5);
+    const bx = b % 5;
+    const by = Math.floor(b / 5);
+    return Math.abs(ax - bx) + Math.abs(ay - by) === 1;
+  }
+
+  function indyMatches() {
+    const found = new Set();
+    for (let y = 0; y < 5; y++) {
+      let run = [y * 5];
+      for (let x = 1; x < 5; x++) {
+        const idx = y * 5 + x;
+        if (state.cells[idx] === state.cells[run[0]]) run.push(idx);
+        else {
+          if (run.length >= 3) run.forEach((i) => found.add(i));
+          run = [idx];
+        }
+      }
+      if (run.length >= 3) run.forEach((i) => found.add(i));
+    }
+    for (let x = 0; x < 5; x++) {
+      let run = [x];
+      for (let y = 1; y < 5; y++) {
+        const idx = y * 5 + x;
+        if (state.cells[idx] === state.cells[run[0]]) run.push(idx);
+        else {
+          if (run.length >= 3) run.forEach((i) => found.add(i));
+          run = [idx];
+        }
+      }
+      if (run.length >= 3) run.forEach((i) => found.add(i));
+    }
+    return [...found];
+  }
+
+  function indyRefill(cleared) {
+    const em = ["🐱", "🧶", "🐟", "💎", "⭐"];
+    cleared.forEach((i) => {
+      state.cells[i] = em[(Math.random() * em.length) | 0];
+    });
   }
 
   function onTap(cx, cy) {
@@ -866,10 +1051,19 @@
         else {
           const a = state.sel;
           const b = idx;
-          if (Math.abs(a - b) === 1 || Math.abs(a - b) === 5) {
+          if (indyAdjacent(a, b)) {
             [state.cells[a], state.cells[b]] = [state.cells[b], state.cells[a]];
-            state.score++;
-            if (state.score >= state.need) finish(true, state.score);
+            const matched = indyMatches();
+            if (matched.length >= 3) {
+              state.score += matched.length;
+              state.flash = 120;
+              indyRefill(matched);
+              if (typeof burstParticles === "function") burstParticles(10);
+              if (state.score >= state.need) finish(true, state.score);
+            } else {
+              [state.cells[a], state.cells[b]] = [state.cells[b], state.cells[a]];
+              state.flash = 60;
+            }
           }
           state.sel = null;
         }
@@ -901,6 +1095,36 @@
             if (state.score >= state.need) finish(true, state.score);
           }
           state.sel = null;
+        }
+        break;
+      }
+      case "zodiac_tapper": {
+        if (state.target < 0) break;
+        const dx = cx - W / 2;
+        const dy = cy - H / 2;
+        const dist = Math.hypot(dx, dy);
+        const rOuter = W * 0.43;
+        const rInner = W * 0.2;
+        if (dist < rInner || dist > rOuter) {
+          state.hitFlash = 90;
+          break;
+        }
+        let ang = Math.atan2(dy, dx) - state.rotation + Math.PI / 2;
+        ang = ((ang % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2);
+        const idx = Math.round(ang / (Math.PI * 2 / ZODIAC_SIGNS.length)) % ZODIAC_SIGNS.length;
+        if (idx === state.target) {
+          state.score++;
+          state.target = -1;
+          state.nextTargetIn = 220;
+          state.hitFlash = 220;
+          if (typeof burstParticles === "function") burstParticles(18);
+          if (state.score >= state.need) finish(true, state.score, "zodiac_tapper");
+        } else {
+          state.misses++;
+          state.target = -1;
+          state.nextTargetIn = 250;
+          state.hitFlash = 160;
+          if (state.misses >= state.maxMisses) finish(false, state.score, "zodiac_tapper");
         }
         break;
       }

@@ -7,6 +7,7 @@
     snake: 12,
     crystals: 14,
     casino: 12,
+    casino_partial: 5,
     casino_jackpot: 22,
     mario: 0,
     poker: 10,
@@ -27,6 +28,7 @@
     indycat: 12,
     blocks: 14,
     royal: 16,
+    zodiac_tapper: 1000,
   };
 
   let balance = START_BALANCE;
@@ -69,6 +71,16 @@
     }
   }
 
+  function updateResultBanner(game, won, auraPts, score) {
+    const banner = document.getElementById("resultBanner");
+    if (!banner) return;
+    banner.hidden = false;
+    banner.classList.toggle("win", !!won && auraPts > 0);
+    banner.textContent = won && auraPts > 0
+      ? `Победа: +${auraPts} ✨ · отправьте результат в бот`
+      : `Партия завершена · счёт ${score ?? 0} · можно отправить результат`;
+  }
+
   function getBalance() {
     return balance;
   }
@@ -103,6 +115,9 @@
 
   function finishGame(game, won, score, extra = {}) {
     const kind = extra.kind || game;
+    if (window.lastResult && window.lastResult.won && !won) {
+      return window.lastResult;
+    }
     let auraPts = extra.aura_pts;
     if (auraPts == null) {
       if (game === "mario") {
@@ -141,11 +156,18 @@
         ? `✨ Отправить +${auraPts} в бот (💫 ${balance})`
         : `Завершить · 💫 ${balance}`;
     }
+    updateResultBanner(game, won, auraPts, score);
     return payload;
   }
 
   function resetSession() {
     sessionEarned = 0;
+    const banner = document.getElementById("resultBanner");
+    if (banner) {
+      banner.hidden = true;
+      banner.classList.remove("win");
+      banner.textContent = "";
+    }
     updateHud();
   }
 

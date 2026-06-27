@@ -33,6 +33,7 @@ var activeTab = "library";
 window.activeTab = activeTab;
 let slotsSpins = 0;
 let slotsBusy = false;
+let slotsFinished = false;
 
 // setResult / setMarioResult — в economy.js
 
@@ -769,7 +770,7 @@ function getReelEls() {
 }
 
 document.getElementById("spinBtn").addEventListener("click", () => {
-  if (slotsSpins >= SLOTS_MAX || slotsBusy) return;
+  if (slotsSpins >= SLOTS_MAX || slotsBusy || slotsFinished) return;
   slotsBusy = true;
   const btn = document.getElementById("spinBtn");
   btn.disabled = true;
@@ -810,9 +811,11 @@ document.getElementById("spinBtn").addEventListener("click", () => {
       wraps.forEach((w) => w.classList.add("jackpot"));
       msg.textContent = "🎉 ДЖЕКПОТ!";
       setResult("casino", true, 22, { kind: "casino_jackpot" });
+      slotsFinished = true;
     } else if (two) {
       msg.textContent = "✨ Два символа — приз!";
-      setResult("casino", true, 5, { kind: "casino" });
+      setResult("casino", true, 5, { kind: "casino_partial" });
+      slotsFinished = true;
     } else if (slotsSpins >= SLOTS_MAX) {
       msg.textContent = "Партия окончена";
       setResult("casino", false, 0);
@@ -820,7 +823,7 @@ document.getElementById("spinBtn").addEventListener("click", () => {
       msg.textContent = `Вращение ${slotsSpins} / ${SLOTS_MAX}`;
     }
 
-    btn.disabled = slotsSpins >= SLOTS_MAX;
+    btn.disabled = slotsFinished || slotsSpins >= SLOTS_MAX;
     slotsBusy = false;
   }, spinDuration);
 });
