@@ -39,6 +39,9 @@
 
   const ZODIAC_SIGNS = ["♈", "♉", "♊", "♋", "♌", "♍", "♎", "♏", "♐", "♑", "♒", "♓"];
   const ZODIAC_STORAGE_KEY = "aura_zodiac_tapper_hits_v2";
+  const ZODIAC_SUBMITTED_KEY = "aura_zodiac_tapper_submitted_v1";
+  const ZODIAC_COMET_LEVEL_KEY = "aura_zodiac_tapper_comet_level_v1";
+  const ZODIAC_LAST_VISIT_KEY = "aura_zodiac_tapper_last_visit_v1";
 
   const PAD_GAMES = new Set(["dash", "blocks"]);
 
@@ -257,6 +260,8 @@
       case "zodiac_tapper":
         state.score = loadZodiacHits();
         state.sessionScore = 0;
+        state.decayInfo = applyZodiacDailyDecay();
+        state.submittedTotal = loadZodiacSubmittedHits(state.score);
         state.roundMs = 1200;
         state.targetLeft = 820;
         state.nextTargetIn = 250;
@@ -267,7 +272,14 @@
         state.lastSubmitted = 0;
         state.orbs = [];
         state.orbSpawnIn = 700;
+        state.comet = null;
+        state.cometSpawnIn = 900;
+        state.cometLevelSeen = loadZodiacCometLevel();
         updateZodiacStats();
+        if (state.decayInfo?.lost > 0) {
+          setStatus(`Счёт уменьшен на ${state.decayInfo.lost} ✨ за ${state.decayInfo.missedDays} пропущ. дн.`);
+        }
+        syncZodiacMilestones();
         break;
       default:
         break;
@@ -289,6 +301,9 @@
     gameOver = false;
     setRunning(true);
     setStatus("Играйте · награда в ✨");
+    if (gameId === "zodiac_tapper" && state.decayInfo?.lost > 0) {
+      setStatus(`Счёт уменьшен на ${state.decayInfo.lost} ✨ за ${state.decayInfo.missedDays} пропущ. дн.`);
+    }
     if (controlsEl) {
       controlsEl.hidden = gameId === "zodiac_tapper" || !PAD_GAMES.has(gameId);
       const main = controlsEl.querySelector('[data-mini-action="action"]');
@@ -423,10 +438,18 @@
         if (state.orbSpawnIn <= 0) {
           state.orbSpawnIn = Math.max(450, 1300 - zodiacTier() * 80 - Math.random() * 260);
           const side = (Math.random() * 4) | 0;
+          const tier = zodiacTier();
+          const prize = tier >= 2 && Math.random() < 0.13;
+          const isBad = !prize && tier >= 1 && Math.random() < Math.min(0.42, 0.18 + tier * 0.03);
           const orb = {
-            value: Math.random() < 0.12 ? 5 : Math.random() < 0.32 ? 2 : 1,
+            value: prize
+              ? 30 + ((Math.random() * 71) | 0)
+              : isBad
+              ? -(Math.random() < 0.10 ? 5 : Math.random() < 0.35 ? 2 : 1)
+              : (Math.random() < 0.12 ? 5 : Math.random() < 0.32 ? 2 : 1),
             r: 13 + Math.random() * 5,
             life: 3600,
+            prize,
           };
           if (side === 0) {
             orb.x = -20;
@@ -444,7 +467,9 @@
           const tx = W * (0.25 + Math.random() * 0.5);
           const ty = H * (0.25 + Math.random() * 0.5);
           const d = Math.max(1, Math.hypot(tx - orb.x, ty - orb.y));
-          const speed = 0.055 + zodiacTier() * 0.006 + Math.random() * 0.025;
+          const speed = prize
+            ? 0.145 + tier * 0.018 + Math.random() * 0.05
+            : 0.055 + tier * 0.006 + Math.random() * 0.025;
           orb.vx = ((tx - orb.x) / d) * speed;
           orb.vy = ((ty - orb.y) / d) * speed;
           state.orbs.push(orb);
@@ -457,6 +482,50 @@
         state.orbs = state.orbs.filter(
           (orb) => orb.life > 0 && orb.x > -60 && orb.x < W + 60 && orb.y > -60 && orb.y < H + 60
         );
+        {
+          const level = zodiacTier() + 1;
+          if (!state.comet && (state.cometLevelSeen || 0) < level) {
+            state.cometSpawnIn -= dt;
+            if (state.cometSpawnIn <= 0) {
+              state.cometLevelSeen = level;
+              saveZodiacCometLevel();
+              const fromLeft = Math.random() < 0.5;
+              const y = H * (0.18 + Math.random() * 0.64);
+              const targetY = H * (0.18 + Math.random() * 0.64);
+              const dx = fromLeft ? W + 90 : -90;
+              const sx = fromLeft ? -90 : W + 90;
+              const d = Math.max(1, Math.hypot(dx - sx, targetY - y));
+              const speed = 0.22 + Math.min(0.12, zodiacTier() * 0.012);
+              state.comet = {
+                x: sx,
+                y,
+                vx: ((dx - sx) / d) * speed,
+                vy: ((targetY - y) / d) * speed,
+                r: 20,
+                rubles: 5 + ((Math.random() * 16) | 0),
+                tail: [],
+                life: 5200,
+                level,
+              };
+            }
+          }
+          if (state.comet) {
+            state.comet.tail.unshift({ x: state.comet.x, y: state.comet.y });
+            state.comet.tail = state.comet.tail.slice(0, 14);
+            state.comet.x += state.comet.vx * dt;
+            state.comet.y += state.comet.vy * dt;
+            state.comet.life -= dt;
+            if (
+              state.comet.life <= 0 ||
+              state.comet.x < -140 ||
+              state.comet.x > W + 140 ||
+              state.comet.y < -140 ||
+              state.comet.y > H + 140
+            ) {
+              state.comet = null;
+            }
+          }
+        }
         if (state.target >= 0) {
           state.targetLeft -= dt;
           if (state.targetLeft <= 0) {
@@ -537,6 +606,61 @@
     }
   }
 
+  function loadZodiacSubmittedHits(currentScore) {
+    try {
+      const raw = localStorage.getItem(ZODIAC_SUBMITTED_KEY);
+      const n = parseInt(raw || "0", 10);
+      if (!Number.isFinite(n) || n < 0) return 0;
+      return n;
+    } catch {
+      return 0;
+    }
+  }
+
+  function zodiacDateKey(date = new Date()) {
+    const y = date.getFullYear();
+    const m = String(date.getMonth() + 1).padStart(2, "0");
+    const d = String(date.getDate()).padStart(2, "0");
+    return `${y}-${m}-${d}`;
+  }
+
+  function zodiacDayNumber(dateKey) {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(dateKey || "")) return null;
+    const [y, m, d] = dateKey.split("-").map((part) => parseInt(part, 10));
+    return Math.floor(Date.UTC(y, m - 1, d) / 86400000);
+  }
+
+  function applyZodiacDailyDecay() {
+    const todayKey = zodiacDateKey();
+    try {
+      const lastKey = localStorage.getItem(ZODIAC_LAST_VISIT_KEY);
+      const today = zodiacDayNumber(todayKey);
+      const last = zodiacDayNumber(lastKey);
+      localStorage.setItem(ZODIAC_LAST_VISIT_KEY, todayKey);
+      if (today == null || last == null || today <= last + 1 || state.score <= 0) {
+        return { missedDays: 0, lost: 0 };
+      }
+      const missedDays = Math.max(0, today - last - 1);
+      const before = Math.max(0, state.score | 0);
+      const after = Math.floor(before * Math.pow(0.8, missedDays));
+      state.score = Math.max(0, after);
+      saveZodiacHits();
+      return { missedDays, lost: before - state.score };
+    } catch {
+      return { missedDays: 0, lost: 0 };
+    }
+  }
+
+  function loadZodiacCometLevel() {
+    try {
+      const raw = localStorage.getItem(ZODIAC_COMET_LEVEL_KEY);
+      const n = parseInt(raw || "0", 10);
+      return Number.isFinite(n) && n > 0 ? n : 0;
+    } catch {
+      return 0;
+    }
+  }
+
   function saveZodiacHits() {
     try {
       localStorage.setItem(ZODIAC_STORAGE_KEY, String(Math.max(0, state.score | 0)));
@@ -545,19 +669,89 @@
     }
   }
 
+  function saveZodiacSubmittedHits() {
+    try {
+      localStorage.setItem(
+        ZODIAC_SUBMITTED_KEY,
+        String(Math.max(0, state.submittedTotal | 0))
+      );
+    } catch {
+      /* private mode */
+    }
+  }
+
+  function saveZodiacCometLevel() {
+    try {
+      localStorage.setItem(
+        ZODIAC_COMET_LEVEL_KEY,
+        String(Math.max(0, state.cometLevelSeen | 0))
+      );
+    } catch {
+      /* private mode */
+    }
+  }
+
   function updateZodiacStats() {
+    const level = zodiacTier() + 1;
+    if (titleEl && gameId === "zodiac_tapper") {
+      titleEl.textContent = `♈ Зодиак таппер · уровень ${level}`;
+    }
     if (zodiacTotalHitsEl) zodiacTotalHitsEl.textContent = `${state.score || 0} ✨ всего`;
     if (zodiacRublesEl) zodiacRublesEl.textContent = `${Math.floor((state.score || 0) / 1000)} ₽`;
-    if (zodiacSessionHitsEl) zodiacSessionHitsEl.textContent = `+${state.sessionScore || 0} за сессию`;
+    if (zodiacSessionHitsEl) {
+      const session = state.sessionScore || 0;
+      zodiacSessionHitsEl.textContent = `${session >= 0 ? "+" : ""}${session} за сессию`;
+    }
   }
 
   function addZodiacPoints(amount) {
-    const pts = Math.max(1, amount | 0);
+    const pts = amount | 0;
+    if (!pts) return;
     state.score = Math.max(0, (state.score || 0) + pts);
-    state.sessionScore = Math.max(0, (state.sessionScore || 0) + pts);
+    state.sessionScore = (state.sessionScore || 0) + pts;
     saveZodiacHits();
     updateZodiacStats();
     updateZodiacResult();
+    syncZodiacMilestones();
+  }
+
+  function syncZodiacMilestones() {
+    const tg = window.Telegram?.WebApp;
+    if (!tg?.sendData) return;
+    const total = Math.max(0, state.score | 0);
+    const submitted = Math.max(0, state.submittedTotal | 0);
+    const ready = Math.floor((total - submitted) / 1000) * 1000;
+    if (ready <= 0) return;
+    state.submittedTotal = submitted + ready;
+    saveZodiacSubmittedHits();
+    tg.sendData(JSON.stringify({
+      game: "zodiac_tapper",
+      won: true,
+      kind: "zodiac_tapper",
+      score: ready,
+      hits: ready,
+      total_hits: total,
+      rubles: Math.floor(total / 1000),
+      auto: true,
+    }));
+    setStatus(`♈ Отправлено в бот: +${ready} ✨ · рубли начислятся сообщением`);
+  }
+
+  function sendZodiacCometReward(rubles) {
+    const tg = window.Telegram?.WebApp;
+    if (!tg?.sendData) return;
+    const safeRubles = Math.max(5, Math.min(20, rubles | 0));
+    tg.sendData(JSON.stringify({
+      game: "zodiac_tapper",
+      won: true,
+      kind: "zodiac_tapper_comet",
+      score: 0,
+      hits: 0,
+      total_hits: Math.max(0, state.score | 0),
+      comet_rubles: safeRubles,
+      auto: true,
+    }));
+    setStatus(`☄️ Комета поймана: +${safeRubles} ₽ отправлено в бот`);
   }
 
   function zodiacSpinSpeed() {
@@ -1010,41 +1204,79 @@
 
     (state.orbs || []).forEach((orb) => {
       const alpha = Math.max(0.18, Math.min(1, orb.life / 700));
+      const bad = orb.value < 0;
+      const prize = !!orb.prize;
       ctx.globalAlpha = alpha;
       const g = ctx.createRadialGradient(orb.x, orb.y, 1, orb.x, orb.y, orb.r * 2.1);
       g.addColorStop(0, "rgba(255,255,255,0.95)");
-      g.addColorStop(0.45, "rgba(255,210,80,0.95)");
-      g.addColorStop(1, "rgba(255,120,220,0)");
+      g.addColorStop(
+        0.45,
+        bad ? "rgba(255,72,120,0.96)" : prize ? "rgba(90,255,220,0.98)" : "rgba(255,210,80,0.95)"
+      );
+      g.addColorStop(
+        1,
+        bad ? "rgba(130,20,80,0)" : prize ? "rgba(80,170,255,0)" : "rgba(255,120,220,0)"
+      );
       ctx.fillStyle = g;
       ctx.beginPath();
       ctx.arc(orb.x, orb.y, orb.r * 2.1, 0, Math.PI * 2);
       ctx.fill();
-      ctx.fillStyle = "#3b245f";
+      ctx.fillStyle = bad ? "#4a1230" : prize ? "#123d5a" : "#3b245f";
       ctx.beginPath();
       ctx.arc(orb.x, orb.y, orb.r, 0, Math.PI * 2);
       ctx.fill();
-      ctx.strokeStyle = "#fff8bd";
-      ctx.lineWidth = 2;
+      ctx.strokeStyle = bad ? "#ffc4d6" : prize ? "#bffcff" : "#fff8bd";
+      ctx.lineWidth = prize ? 3 : 2;
       ctx.stroke();
-      ctx.fillStyle = "#fff8bd";
-      ctx.font = `bold ${Math.max(11, orb.r * 0.95)}px system-ui,sans-serif`;
+      ctx.fillStyle = bad ? "#ffd3df" : prize ? "#dcffff" : "#fff8bd";
+      ctx.font = `bold ${Math.max(prize ? 10 : 11, orb.r * (prize ? 0.82 : 0.95))}px system-ui,sans-serif`;
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
-      ctx.fillText(`+${orb.value}`, orb.x, orb.y + 0.5);
+      ctx.fillText(`${orb.value > 0 ? "+" : ""}${orb.value}`, orb.x, orb.y + 0.5);
       ctx.globalAlpha = 1;
     });
 
-    ctx.fillStyle = "rgba(0,0,0,0.34)";
-    ctx.beginPath();
-    ctx.roundRect(18, 12, W - 36, 58, 18);
-    ctx.fill();
-    ctx.fillStyle = "#fff";
-    ctx.font = "bold 14px system-ui,sans-serif";
-    ctx.textAlign = "center";
-    ctx.fillText(`Очки: ${state.score} ✨ · ₽ ${Math.floor(state.score / 1000)}`, cx, 34);
-    ctx.fillStyle = "#ffd250";
-    ctx.font = "12px system-ui,sans-serif";
-    ctx.fillText(`+${state.sessionScore || 0} за сессию · скорость ${tier + 1}`, cx, 54);
+    if (state.comet) {
+      ctx.save();
+      state.comet.tail.forEach((p, i) => {
+        const alpha = Math.max(0, 0.52 - i * 0.035);
+        ctx.globalAlpha = alpha;
+        ctx.fillStyle = i % 2 ? "#7df9ff" : "#fff1a6";
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, Math.max(2, state.comet.r - i * 1.15), 0, Math.PI * 2);
+        ctx.fill();
+      });
+      ctx.globalAlpha = 1;
+      const g = ctx.createRadialGradient(
+        state.comet.x,
+        state.comet.y,
+        2,
+        state.comet.x,
+        state.comet.y,
+        state.comet.r * 2.4
+      );
+      g.addColorStop(0, "#ffffff");
+      g.addColorStop(0.35, "#fff1a6");
+      g.addColorStop(0.7, "rgba(125,249,255,0.92)");
+      g.addColorStop(1, "rgba(70,120,255,0)");
+      ctx.fillStyle = g;
+      ctx.beginPath();
+      ctx.arc(state.comet.x, state.comet.y, state.comet.r * 2.4, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = "#fff8bd";
+      ctx.beginPath();
+      ctx.arc(state.comet.x, state.comet.y, state.comet.r, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = "#7df9ff";
+      ctx.lineWidth = 3;
+      ctx.stroke();
+      ctx.fillStyle = "#1e2450";
+      ctx.font = "bold 11px system-ui,sans-serif";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText(`₽${state.comet.rubles}`, state.comet.x, state.comet.y + 0.5);
+      ctx.restore();
+    }
 
     if (state.target >= 0) {
       ctx.fillStyle = "rgba(255,210,80,0.92)";
@@ -1058,7 +1290,7 @@
     } else {
       ctx.fillStyle = "#cdb8ff";
       ctx.font = "12px system-ui,sans-serif";
-      ctx.fillText("Ловите вспышки и летящие +очки", cx, H - 36);
+      ctx.fillText("2 ур.: минусы · 3 ур.: быстрые призы +30…+100", cx, H - 36);
     }
   }
 
@@ -1259,13 +1491,23 @@
         break;
       }
       case "zodiac_tapper": {
+        if (state.comet && Math.hypot(cx - state.comet.x, cy - state.comet.y) <= state.comet.r * 2.05) {
+          const rubles = state.comet.rubles;
+          state.comet = null;
+          state.hitFlash = 240;
+          sendZodiacCometReward(rubles);
+          if (typeof burstParticles === "function") burstParticles(48);
+          return;
+        }
         for (let i = (state.orbs || []).length - 1; i >= 0; i--) {
           const orb = state.orbs[i];
           if (Math.hypot(cx - orb.x, cy - orb.y) <= orb.r * 1.8) {
             addZodiacPoints(orb.value);
             state.orbs.splice(i, 1);
             state.hitFlash = 180;
-            if (typeof burstParticles === "function") burstParticles(12 + orb.value * 2);
+            if (typeof burstParticles === "function") {
+              burstParticles(orb.value > 0 ? 12 + orb.value * 2 : 7);
+            }
             return;
           }
         }
