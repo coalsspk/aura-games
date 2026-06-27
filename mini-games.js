@@ -423,8 +423,11 @@
         if (state.orbSpawnIn <= 0) {
           state.orbSpawnIn = Math.max(450, 1300 - zodiacTier() * 80 - Math.random() * 260);
           const side = (Math.random() * 4) | 0;
+          const isBad = Math.random() < Math.min(0.42, 0.22 + zodiacTier() * 0.025);
           const orb = {
-            value: Math.random() < 0.12 ? 5 : Math.random() < 0.32 ? 2 : 1,
+            value: isBad
+              ? -(Math.random() < 0.10 ? 5 : Math.random() < 0.35 ? 2 : 1)
+              : (Math.random() < 0.12 ? 5 : Math.random() < 0.32 ? 2 : 1),
             r: 13 + Math.random() * 5,
             life: 3600,
           };
@@ -548,13 +551,17 @@
   function updateZodiacStats() {
     if (zodiacTotalHitsEl) zodiacTotalHitsEl.textContent = `${state.score || 0} ✨ всего`;
     if (zodiacRublesEl) zodiacRublesEl.textContent = `${Math.floor((state.score || 0) / 1000)} ₽`;
-    if (zodiacSessionHitsEl) zodiacSessionHitsEl.textContent = `+${state.sessionScore || 0} за сессию`;
+    if (zodiacSessionHitsEl) {
+      const session = state.sessionScore || 0;
+      zodiacSessionHitsEl.textContent = `${session >= 0 ? "+" : ""}${session} за сессию`;
+    }
   }
 
   function addZodiacPoints(amount) {
-    const pts = Math.max(1, amount | 0);
+    const pts = amount | 0;
+    if (!pts) return;
     state.score = Math.max(0, (state.score || 0) + pts);
-    state.sessionScore = Math.max(0, (state.sessionScore || 0) + pts);
+    state.sessionScore = (state.sessionScore || 0) + pts;
     saveZodiacHits();
     updateZodiacStats();
     updateZodiacResult();
@@ -1010,27 +1017,28 @@
 
     (state.orbs || []).forEach((orb) => {
       const alpha = Math.max(0.18, Math.min(1, orb.life / 700));
+      const bad = orb.value < 0;
       ctx.globalAlpha = alpha;
       const g = ctx.createRadialGradient(orb.x, orb.y, 1, orb.x, orb.y, orb.r * 2.1);
       g.addColorStop(0, "rgba(255,255,255,0.95)");
-      g.addColorStop(0.45, "rgba(255,210,80,0.95)");
-      g.addColorStop(1, "rgba(255,120,220,0)");
+      g.addColorStop(0.45, bad ? "rgba(255,72,120,0.96)" : "rgba(255,210,80,0.95)");
+      g.addColorStop(1, bad ? "rgba(130,20,80,0)" : "rgba(255,120,220,0)");
       ctx.fillStyle = g;
       ctx.beginPath();
       ctx.arc(orb.x, orb.y, orb.r * 2.1, 0, Math.PI * 2);
       ctx.fill();
-      ctx.fillStyle = "#3b245f";
+      ctx.fillStyle = bad ? "#4a1230" : "#3b245f";
       ctx.beginPath();
       ctx.arc(orb.x, orb.y, orb.r, 0, Math.PI * 2);
       ctx.fill();
-      ctx.strokeStyle = "#fff8bd";
+      ctx.strokeStyle = bad ? "#ffc4d6" : "#fff8bd";
       ctx.lineWidth = 2;
       ctx.stroke();
-      ctx.fillStyle = "#fff8bd";
+      ctx.fillStyle = bad ? "#ffd3df" : "#fff8bd";
       ctx.font = `bold ${Math.max(11, orb.r * 0.95)}px system-ui,sans-serif`;
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
-      ctx.fillText(`+${orb.value}`, orb.x, orb.y + 0.5);
+      ctx.fillText(`${orb.value > 0 ? "+" : ""}${orb.value}`, orb.x, orb.y + 0.5);
       ctx.globalAlpha = 1;
     });
 
@@ -1058,7 +1066,7 @@
     } else {
       ctx.fillStyle = "#cdb8ff";
       ctx.font = "12px system-ui,sans-serif";
-      ctx.fillText("Ловите вспышки и летящие +очки", cx, H - 36);
+      ctx.fillText("Ловите +очки и избегайте минусов", cx, H - 36);
     }
   }
 
@@ -1265,7 +1273,9 @@
             addZodiacPoints(orb.value);
             state.orbs.splice(i, 1);
             state.hitFlash = 180;
-            if (typeof burstParticles === "function") burstParticles(12 + orb.value * 2);
+            if (typeof burstParticles === "function") {
+              burstParticles(orb.value > 0 ? 12 + orb.value * 2 : 7);
+            }
             return;
           }
         }
