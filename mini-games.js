@@ -6,6 +6,10 @@
   const titleEl = document.getElementById("miniGameTitle");
   const startBtn = document.getElementById("miniGameStartBtn");
   const controlsEl = document.getElementById("miniGameControls");
+  const zodiacStatsEl = document.getElementById("zodiacStats");
+  const zodiacTotalHitsEl = document.getElementById("zodiacTotalHits");
+  const zodiacRublesEl = document.getElementById("zodiacRubles");
+  const zodiacSessionHitsEl = document.getElementById("zodiacSessionHits");
   if (!canvas) return;
 
   let ctx;
@@ -34,6 +38,7 @@
   };
 
   const ZODIAC_SIGNS = ["♈", "♉", "♊", "♋", "♌", "♍", "♎", "♏", "♐", "♑", "♒", "♓"];
+  const ZODIAC_STORAGE_KEY = "aura_zodiac_tapper_hits_v2";
 
   const PAD_GAMES = new Set(["dash", "blocks"]);
 
@@ -73,11 +78,11 @@
     playing = on && !gameOver;
     frame?.classList.toggle("minigame-running", playing);
     if (startBtn) {
-      startBtn.disabled = playing;
+      startBtn.disabled = playing || gameId === "zodiac_tapper";
       if (!playing) startBtn.textContent = gameOver ? "🔄 Снова" : "▶ Старт";
     }
     if (controlsEl) {
-      controlsEl.hidden = !playing || !PAD_GAMES.has(gameId);
+      controlsEl.hidden = gameId === "zodiac_tapper" || !playing || !PAD_GAMES.has(gameId);
     }
   }
 
@@ -250,7 +255,8 @@
         spawnRoyalTile();
         break;
       case "zodiac_tapper":
-        state.score = 0;
+        state.score = loadZodiacHits();
+        state.sessionScore = 0;
         state.roundMs = 1200;
         state.targetLeft = 820;
         state.nextTargetIn = 250;
@@ -259,6 +265,9 @@
         state.spin = 0.0028;
         state.hitFlash = 0;
         state.lastSubmitted = 0;
+        state.orbs = [];
+        state.orbSpawnIn = 700;
+        updateZodiacStats();
         break;
       default:
         break;
@@ -266,7 +275,9 @@
   }
 
   function updateChrome() {
-    document.body?.classList.toggle("zodiac-tapper-mode", gameId === "zodiac_tapper");
+    const isZodiac = gameId === "zodiac_tapper";
+    document.body?.classList.toggle("zodiac-tapper-mode", isZodiac);
+    if (zodiacStatsEl) zodiacStatsEl.hidden = !isZodiac;
   }
 
   function start(id) {
@@ -279,10 +290,11 @@
     setRunning(true);
     setStatus("Играйте · награда в ✨");
     if (controlsEl) {
-      controlsEl.hidden = !PAD_GAMES.has(gameId);
+      controlsEl.hidden = gameId === "zodiac_tapper" || !PAD_GAMES.has(gameId);
       const main = controlsEl.querySelector('[data-mini-action="action"]');
       if (main) main.textContent = gameId === "dash" ? "⬆ Прыжок" : "↻ Поворот";
     }
+    if (gameId === "zodiac_tapper") updateZodiacStats();
   }
 
   function stop() {
@@ -407,6 +419,44 @@
       case "zodiac_tapper":
         state.spin = zodiacSpinSpeed();
         state.rotation += dt * state.spin;
+        state.orbSpawnIn -= dt;
+        if (state.orbSpawnIn <= 0) {
+          state.orbSpawnIn = Math.max(450, 1300 - zodiacTier() * 80 - Math.random() * 260);
+          const side = (Math.random() * 4) | 0;
+          const orb = {
+            value: Math.random() < 0.12 ? 5 : Math.random() < 0.32 ? 2 : 1,
+            r: 13 + Math.random() * 5,
+            life: 3600,
+          };
+          if (side === 0) {
+            orb.x = -20;
+            orb.y = 28 + Math.random() * (H - 56);
+          } else if (side === 1) {
+            orb.x = W + 20;
+            orb.y = 28 + Math.random() * (H - 56);
+          } else if (side === 2) {
+            orb.x = 28 + Math.random() * (W - 56);
+            orb.y = -20;
+          } else {
+            orb.x = 28 + Math.random() * (W - 56);
+            orb.y = H + 20;
+          }
+          const tx = W * (0.25 + Math.random() * 0.5);
+          const ty = H * (0.25 + Math.random() * 0.5);
+          const d = Math.max(1, Math.hypot(tx - orb.x, ty - orb.y));
+          const speed = 0.055 + zodiacTier() * 0.006 + Math.random() * 0.025;
+          orb.vx = ((tx - orb.x) / d) * speed;
+          orb.vy = ((ty - orb.y) / d) * speed;
+          state.orbs.push(orb);
+        }
+        state.orbs.forEach((orb) => {
+          orb.x += orb.vx * dt;
+          orb.y += orb.vy * dt;
+          orb.life -= dt;
+        });
+        state.orbs = state.orbs.filter(
+          (orb) => orb.life > 0 && orb.x > -60 && orb.x < W + 60 && orb.y > -60 && orb.y < H + 60
+        );
         if (state.target >= 0) {
           state.targetLeft -= dt;
           if (state.targetLeft <= 0) {
@@ -477,6 +527,39 @@
     return Math.floor((state.score || 0) / 1000);
   }
 
+  function loadZodiacHits() {
+    try {
+      const raw = localStorage.getItem(ZODIAC_STORAGE_KEY);
+      const n = parseInt(raw || "0", 10);
+      return Number.isFinite(n) && n > 0 ? n : 0;
+    } catch {
+      return 0;
+    }
+  }
+
+  function saveZodiacHits() {
+    try {
+      localStorage.setItem(ZODIAC_STORAGE_KEY, String(Math.max(0, state.score | 0)));
+    } catch {
+      /* private mode */
+    }
+  }
+
+  function updateZodiacStats() {
+    if (zodiacTotalHitsEl) zodiacTotalHitsEl.textContent = `${state.score || 0} ✨ всего`;
+    if (zodiacRublesEl) zodiacRublesEl.textContent = `${Math.floor((state.score || 0) / 1000)} ₽`;
+    if (zodiacSessionHitsEl) zodiacSessionHitsEl.textContent = `+${state.sessionScore || 0} за сессию`;
+  }
+
+  function addZodiacPoints(amount) {
+    const pts = Math.max(1, amount | 0);
+    state.score = Math.max(0, (state.score || 0) + pts);
+    state.sessionScore = Math.max(0, (state.sessionScore || 0) + pts);
+    saveZodiacHits();
+    updateZodiacStats();
+    updateZodiacResult();
+  }
+
   function zodiacSpinSpeed() {
     return 0.0028 + zodiacTier() * 0.00085;
   }
@@ -487,12 +570,13 @@
 
   function updateZodiacResult() {
     if (typeof setResult !== "function") return;
-    const earned = Math.max(0, state.score | 0);
+    const earned = Math.max(0, state.sessionScore | 0);
     if (earned <= 0) return;
     setResult("zodiac_tapper", true, earned, {
       kind: "zodiac_tapper",
       hits: earned,
-      rubles: Math.floor(earned / 1000),
+      total_hits: Math.max(0, state.score | 0),
+      rubles: Math.floor((state.score || 0) / 1000),
     });
   }
 
@@ -924,6 +1008,32 @@
     }
     ctx.restore();
 
+    (state.orbs || []).forEach((orb) => {
+      const alpha = Math.max(0.18, Math.min(1, orb.life / 700));
+      ctx.globalAlpha = alpha;
+      const g = ctx.createRadialGradient(orb.x, orb.y, 1, orb.x, orb.y, orb.r * 2.1);
+      g.addColorStop(0, "rgba(255,255,255,0.95)");
+      g.addColorStop(0.45, "rgba(255,210,80,0.95)");
+      g.addColorStop(1, "rgba(255,120,220,0)");
+      ctx.fillStyle = g;
+      ctx.beginPath();
+      ctx.arc(orb.x, orb.y, orb.r * 2.1, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = "#3b245f";
+      ctx.beginPath();
+      ctx.arc(orb.x, orb.y, orb.r, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = "#fff8bd";
+      ctx.lineWidth = 2;
+      ctx.stroke();
+      ctx.fillStyle = "#fff8bd";
+      ctx.font = `bold ${Math.max(11, orb.r * 0.95)}px system-ui,sans-serif`;
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText(`+${orb.value}`, orb.x, orb.y + 0.5);
+      ctx.globalAlpha = 1;
+    });
+
     ctx.fillStyle = "rgba(0,0,0,0.34)";
     ctx.beginPath();
     ctx.roundRect(18, 12, W - 36, 58, 18);
@@ -934,7 +1044,7 @@
     ctx.fillText(`Очки: ${state.score} ✨ · ₽ ${Math.floor(state.score / 1000)}`, cx, 34);
     ctx.fillStyle = "#ffd250";
     ctx.font = "12px system-ui,sans-serif";
-    ctx.fillText(`1000 ✨ = 1 ₽ · уровень скорости ${tier + 1}`, cx, 54);
+    ctx.fillText(`+${state.sessionScore || 0} за сессию · скорость ${tier + 1}`, cx, 54);
 
     if (state.target >= 0) {
       ctx.fillStyle = "rgba(255,210,80,0.92)";
@@ -948,7 +1058,7 @@
     } else {
       ctx.fillStyle = "#cdb8ff";
       ctx.font = "12px system-ui,sans-serif";
-      ctx.fillText("Игра бесконечная · ловите следующую вспышку", cx, H - 36);
+      ctx.fillText("Ловите вспышки и летящие +очки", cx, H - 36);
     }
   }
 
@@ -1149,6 +1259,16 @@
         break;
       }
       case "zodiac_tapper": {
+        for (let i = (state.orbs || []).length - 1; i >= 0; i--) {
+          const orb = state.orbs[i];
+          if (Math.hypot(cx - orb.x, cy - orb.y) <= orb.r * 1.8) {
+            addZodiacPoints(orb.value);
+            state.orbs.splice(i, 1);
+            state.hitFlash = 180;
+            if (typeof burstParticles === "function") burstParticles(12 + orb.value * 2);
+            return;
+          }
+        }
         if (state.target < 0) break;
         const dx = cx - W / 2;
         const dy = cy - H / 2;
@@ -1163,11 +1283,10 @@
         ang = ((ang % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2);
         const idx = Math.round(ang / (Math.PI * 2 / ZODIAC_SIGNS.length)) % ZODIAC_SIGNS.length;
         if (idx === state.target) {
-          state.score++;
+          addZodiacPoints(1);
           state.target = -1;
           state.nextTargetIn = 170;
           state.hitFlash = 220;
-          updateZodiacResult();
           if (typeof burstParticles === "function") burstParticles(18);
         } else {
           state.target = -1;
@@ -1296,6 +1415,10 @@
       setRunning(false);
       setStatus("Нажмите «Старт» или тапните по полю");
       draw();
+      if (id === "zodiac_tapper") {
+        start(id);
+        setStatus("♈ Бесконечная игра · ловите знаки и бонусы");
+      }
       return true;
     },
     start,

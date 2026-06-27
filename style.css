@@ -1357,6 +1357,35 @@ body.zodiac-tapper-mode {
   padding-bottom: max(8px, env(safe-area-inset-bottom));
 }
 
+body.zodiac-tapper-mode #miniGameStartBtn,
+body.zodiac-tapper-mode #miniGameControls {
+  display: none !important;
+}
+
+.zodiac-stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  max-width: 380px;
+  margin: 10px auto 0;
+}
+
+.zodiac-stats[hidden] {
+  display: none;
+}
+
+.zodiac-stats span {
+  padding: 8px 6px;
+  border-radius: 14px;
+  border: 1px solid rgba(255, 210, 80, 0.35);
+  background: linear-gradient(135deg, rgba(255, 210, 80, 0.16), rgba(95, 62, 180, 0.18));
+  color: #fff8bd;
+  font-size: 0.78rem;
+  font-weight: 800;
+  text-align: center;
+  box-shadow: 0 0 18px rgba(255, 210, 80, 0.12);
+}
+
 .particles {
   pointer-events: none;
   position: fixed;
