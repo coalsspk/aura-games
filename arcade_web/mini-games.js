@@ -10,6 +10,9 @@
   const zodiacTotalHitsEl = document.getElementById("zodiacTotalHits");
   const zodiacRublesEl = document.getElementById("zodiacRubles");
   const zodiacSessionHitsEl = document.getElementById("zodiacSessionHits");
+  const zodiacRulesBtn = document.getElementById("zodiacRulesBtn");
+  const zodiacRulesModal = document.getElementById("zodiacRulesModal");
+  const zodiacRulesClose = document.getElementById("zodiacRulesClose");
   if (!canvas) return;
 
   let ctx;
@@ -275,6 +278,11 @@
         state.comet = null;
         state.cometSpawnIn = 900;
         state.cometLevelSeen = loadZodiacCometLevel();
+        state.levelSeen = zodiacTier() + 1;
+        state.drainCircles = [];
+        state.drainCircleLevel = state.levelSeen;
+        state.drainCirclesSpawned = 0;
+        state.drainCircleSpawnIn = 3200 + Math.random() * 5200;
         updateZodiacStats();
         if (state.decayInfo?.lost > 0) {
           setStatus(`Счёт уменьшен на ${state.decayInfo.lost} ✨ за ${state.decayInfo.missedDays} пропущ. дн.`);
@@ -290,6 +298,8 @@
     const isZodiac = gameId === "zodiac_tapper";
     document.body?.classList.toggle("zodiac-tapper-mode", isZodiac);
     if (zodiacStatsEl) zodiacStatsEl.hidden = !isZodiac;
+    if (zodiacRulesBtn) zodiacRulesBtn.hidden = !isZodiac;
+    if (!isZodiac && zodiacRulesModal) zodiacRulesModal.hidden = true;
   }
 
   function start(id) {
@@ -484,6 +494,37 @@
         );
         {
           const level = zodiacTier() + 1;
+          if ((state.drainCircleLevel || 0) !== level) {
+            state.levelSeen = level;
+            resetZodiacDrainLevel(level);
+          }
+          const drainLimit = Math.max(2, level * 2);
+          state.drainCircles = state.drainCircles || [];
+          state.drainCircleSpawnIn -= dt;
+          if (
+            state.drainCircleSpawnIn <= 0 &&
+            state.drainCirclesSpawned < drainLimit &&
+            state.drainCircles.length < Math.min(5, Math.max(2, level))
+          ) {
+            spawnZodiacDrainCircle(level);
+            state.drainCirclesSpawned++;
+            state.drainCircleSpawnIn = 7000 + Math.random() * 15000;
+          }
+          state.drainCircles.forEach((circle) => {
+            circle.x += circle.vx * dt;
+            circle.y += circle.vy * dt;
+            circle.life -= dt;
+            circle.spin += dt * 0.005;
+            if (circle.x < circle.r || circle.x > W - circle.r) {
+              circle.vx *= -1;
+              circle.x = Math.max(circle.r, Math.min(W - circle.r, circle.x));
+            }
+            if (circle.y < circle.r || circle.y > H - circle.r) {
+              circle.vy *= -1;
+              circle.y = Math.max(circle.r, Math.min(H - circle.r, circle.y));
+            }
+          });
+          state.drainCircles = state.drainCircles.filter((circle) => circle.life > 0);
           if (!state.comet && (state.cometLevelSeen || 0) < level) {
             state.cometSpawnIn -= dt;
             if (state.cometSpawnIn <= 0) {
@@ -704,15 +745,82 @@
     }
   }
 
+  function resetZodiacDrainLevel(level) {
+    state.drainCircleLevel = level;
+    state.drainCirclesSpawned = 0;
+    state.drainCircleSpawnIn = 2400 + Math.random() * 5200;
+  }
+
+  function spawnZodiacDrainCircle(level) {
+    const r = 15 + Math.random() * 6;
+    state.drainCircles = state.drainCircles || [];
+    state.drainCircles.push({
+      x: r + Math.random() * Math.max(1, W - r * 2),
+      y: r + Math.random() * Math.max(1, H - r * 2),
+      vx: (Math.random() < 0.5 ? -1 : 1) * (0.018 + Math.random() * 0.03 + level * 0.0015),
+      vy: (Math.random() < 0.5 ? -1 : 1) * (0.018 + Math.random() * 0.03 + level * 0.0015),
+      r,
+      life: 60000 + Math.random() * 120000,
+      spin: Math.random() * Math.PI * 2,
+    });
+  }
+
+  function applyZodiacPercentPenalty(percent) {
+    const before = Math.max(0, state.score | 0);
+    if (before <= 0) return 0;
+    const lost = Math.max(1, Math.ceil(before * percent));
+    state.score = Math.max(0, before - lost);
+    state.sessionScore = (state.sessionScore || 0) - lost;
+    saveZodiacHits();
+    updateZodiacStats();
+    updateZodiacResult();
+    return lost;
+  }
+
+  function spawnZodiacLevelFireworks(level) {
+    state.orbs = state.orbs || [];
+    const cx = W / 2;
+    const cy = H / 2;
+    const count = Math.min(22, 8 + level * 2);
+    for (let i = 0; i < count; i++) {
+      const a = (Math.PI * 2 * i) / count + Math.random() * 0.34;
+      const speed = 0.055 + Math.random() * 0.055;
+      state.orbs.push({
+        x: cx + Math.cos(a) * (18 + Math.random() * 24),
+        y: cy + Math.sin(a) * (18 + Math.random() * 24),
+        vx: Math.cos(a) * speed,
+        vy: Math.sin(a) * speed,
+        value: 10 + ((Math.random() * 21) | 0),
+        r: 14 + Math.random() * 6,
+        life: 6500,
+        prize: true,
+        firework: true,
+      });
+    }
+    setStatus(`🎆 Уровень ${level}! Ловите салют +10…+30 ✨`);
+  }
+
   function addZodiacPoints(amount) {
     const pts = amount | 0;
     if (!pts) return;
+    const beforeLevel = zodiacTier() + 1;
     state.score = Math.max(0, (state.score || 0) + pts);
     state.sessionScore = (state.sessionScore || 0) + pts;
     saveZodiacHits();
     updateZodiacStats();
     updateZodiacResult();
     syncZodiacMilestones();
+    const afterLevel = zodiacTier() + 1;
+    if (pts > 0 && afterLevel > beforeLevel) {
+      for (let level = beforeLevel + 1; level <= afterLevel; level++) {
+        spawnZodiacLevelFireworks(level);
+      }
+      state.levelSeen = afterLevel;
+      resetZodiacDrainLevel(afterLevel);
+    } else if (afterLevel !== state.levelSeen) {
+      state.levelSeen = afterLevel;
+      resetZodiacDrainLevel(afterLevel);
+    }
   }
 
   function syncZodiacMilestones() {
@@ -1236,6 +1344,34 @@
       ctx.globalAlpha = 1;
     });
 
+    (state.drainCircles || []).forEach((circle) => {
+      const pulse = 0.5 + Math.sin(animT * 0.006 + circle.spin) * 0.5;
+      ctx.save();
+      ctx.globalAlpha = Math.max(0.28, Math.min(1, circle.life / 1000));
+      const g = ctx.createRadialGradient(circle.x, circle.y, 2, circle.x, circle.y, circle.r * 2.6);
+      g.addColorStop(0, "rgba(255,255,255,0.96)");
+      g.addColorStop(0.35, "rgba(255,64,122,0.98)");
+      g.addColorStop(0.7, "rgba(150,36,190,0.88)");
+      g.addColorStop(1, "rgba(80,0,110,0)");
+      ctx.fillStyle = g;
+      ctx.beginPath();
+      ctx.arc(circle.x, circle.y, circle.r * (2.25 + pulse * 0.3), 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = "#42102d";
+      ctx.beginPath();
+      ctx.arc(circle.x, circle.y, circle.r, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = "#ffd0df";
+      ctx.lineWidth = 2.4 + pulse * 1.6;
+      ctx.stroke();
+      ctx.fillStyle = "#ffe1ea";
+      ctx.font = `bold ${Math.max(10, circle.r * 0.7)}px system-ui,sans-serif`;
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText("-10%", circle.x, circle.y + 0.5);
+      ctx.restore();
+    });
+
     if (state.comet) {
       ctx.save();
       state.comet.tail.forEach((p, i) => {
@@ -1290,7 +1426,7 @@
     } else {
       ctx.fillStyle = "#cdb8ff";
       ctx.font = "12px system-ui,sans-serif";
-      ctx.fillText("2 ур.: минусы · 3 ур.: быстрые призы +30…+100", cx, H - 36);
+      ctx.fillText("Круг -10% · салют уровня +10…+30", cx, H - 36);
     }
   }
 
@@ -1499,6 +1635,17 @@
           if (typeof burstParticles === "function") burstParticles(48);
           return;
         }
+        for (let i = (state.drainCircles || []).length - 1; i >= 0; i--) {
+          const circle = state.drainCircles[i];
+          if (Math.hypot(cx - circle.x, cy - circle.y) <= circle.r * 1.85) {
+            const lost = applyZodiacPercentPenalty(0.1);
+            state.drainCircles.splice(i, 1);
+            state.hitFlash = 220;
+            setStatus(`⚠️ Вредный круг: -${lost} ✨`);
+            if (typeof burstParticles === "function") burstParticles(10);
+            return;
+          }
+        }
         for (let i = (state.orbs || []).length - 1; i >= 0; i--) {
           const orb = state.orbs[i];
           if (Math.hypot(cx - orb.x, cy - orb.y) <= orb.r * 1.8) {
@@ -1628,6 +1775,24 @@
     },
     { passive: false }
   );
+
+  zodiacRulesBtn?.addEventListener("click", (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (zodiacRulesModal) zodiacRulesModal.hidden = false;
+  });
+  zodiacRulesClose?.addEventListener("click", (e) => {
+    e.preventDefault();
+    if (zodiacRulesModal) zodiacRulesModal.hidden = true;
+  });
+  zodiacRulesModal?.addEventListener("click", (e) => {
+    if (e.target === zodiacRulesModal) zodiacRulesModal.hidden = true;
+  });
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && zodiacRulesModal && !zodiacRulesModal.hidden) {
+      zodiacRulesModal.hidden = true;
+    }
+  });
 
   bindInput();
   setupCanvas();

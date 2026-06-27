@@ -8,9 +8,9 @@
   <meta http-equiv="Pragma" content="no-cache" />
   <meta http-equiv="Expires" content="0" />
   <title>Aura Games</title>
-  <script>window.ARCADE_BUILD="20260627-zodiac-decay-1";</script>
+  <script>window.ARCADE_BUILD="20260627-zodiac-rules-1";</script>
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
-  <link rel="stylesheet" href="style.css?v=20260627-zodiac-decay-1" />
+  <link rel="stylesheet" href="style.css?v=20260627-zodiac-rules-1" />
 </head>
 <body>
   <div id="particles" class="particles" aria-hidden="true"></div>
@@ -70,7 +70,22 @@
       <p id="miniGameTitle" class="score">—</p>
       <div id="miniGameFrame" class="game-frame minigame-frame">
         <canvas id="miniGameCanvas" width="320" height="320"></canvas>
+        <button type="button" id="zodiacRulesBtn" class="zodiac-rules-btn" hidden>Правила</button>
         <button type="button" id="miniGameStartBtn" class="btn primary snake-start-btn">▶ Старт</button>
+      </div>
+      <div id="zodiacRulesModal" class="zodiac-rules-modal" hidden>
+        <div class="zodiac-rules-card" role="dialog" aria-modal="true" aria-labelledby="zodiacRulesTitle">
+          <button type="button" id="zodiacRulesClose" class="zodiac-rules-close" aria-label="Закрыть">×</button>
+          <h3 id="zodiacRulesTitle">Правила Zodiac Tapper</h3>
+          <ul>
+            <li>Тапайте по мигающему знаку зодиака: каждое попадание даёт +1 ✨.</li>
+            <li>1000 ✨ в таппере превращаются в 1 ₽ к выводу.</li>
+            <li>Ловите бонусные очки и кометы: комета даёт сразу 5–20 ₽.</li>
+            <li>Красные минусы и круг -10% уменьшают игровой счёт.</li>
+            <li>После нового уровня появляется салют с бонусами +10…+30 ✨.</li>
+            <li>Если пропустить полный день, счёт уменьшается на 20% за каждый пропущенный день.</li>
+          </ul>
+        </div>
       </div>
       <p id="miniGameStatus" class="status-badge">Нажмите «Старт»</p>
       <div id="miniGameControls" class="minigame-controls" hidden aria-label="Управление">
@@ -241,12 +256,12 @@
     <p class="hint small">Очки ауры ✨ — единая валюта · дневной лимит проверяется ботом</p>
   </footer>
 
-  <script src="engine.js?v=20260627-zodiac-decay-1"></script>
-  <script src="economy.js?v=20260627-zodiac-decay-1"></script>
-  <script src="app.js?v=20260627-zodiac-decay-1"></script>
-  <script src="library.js?v=20260627-zodiac-decay-1"></script>
-  <script src="mini-games.js?v=20260627-zodiac-decay-1"></script>
-  <script src="mario.js?v=20260627-zodiac-decay-1"></script>
+  <script src="engine.js?v=20260627-zodiac-rules-1"></script>
+  <script src="economy.js?v=20260627-zodiac-rules-1"></script>
+  <script src="app.js?v=20260627-zodiac-rules-1"></script>
+  <script src="library.js?v=20260627-zodiac-rules-1"></script>
+  <script src="mini-games.js?v=20260627-zodiac-rules-1"></script>
+  <script src="mario.js?v=20260627-zodiac-rules-1"></script>
   <script src="poker.js?v=20260627-zodiac-autopay-1"></script>
   <script src="tanks.js?v=20260627-zodiac-autopay-1"></script>
 </body>
