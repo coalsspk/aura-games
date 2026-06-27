@@ -1349,6 +1349,14 @@ footer {
   padding-bottom: max(16px, env(safe-area-inset-bottom));
 }
 
+body.zodiac-tapper-mode footer {
+  display: none;
+}
+
+body.zodiac-tapper-mode {
+  padding-bottom: max(8px, env(safe-area-inset-bottom));
+}
+
 .particles {
   pointer-events: none;
   position: fixed;

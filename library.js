@@ -12,7 +12,7 @@
     { id: "indycat", title: "Инди кот", icon: "🐱", color: "#ff5722", reward: 12 },
     { id: "blocks", title: "Блоки", icon: "🧱", color: "#607d8b", reward: 14 },
     { id: "royal", title: "Royal Kingdom", icon: "👑", color: "#ffd250", reward: 16 },
-    { id: "zodiac_tapper", title: "Зодиак таппер", icon: "♈", color: "#f6d365", reward: 1000 },
+    { id: "zodiac_tapper", title: "Зодиак таппер", icon: "♈", color: "#f6d365", reward: "1/тап" },
     { id: "snake", title: "Змейка", icon: "🐍", color: "#5ee88a", reward: 12 },
     { id: "crystals", title: "Кристаллы", icon: "💎", color: "#5ec8ff", reward: 14 },
     { id: "slots", title: "Слоты", icon: "🎰", color: "#ffd250", reward: 12 },
@@ -66,7 +66,7 @@
     card.type = "button";
     card.className = "library-card";
     card.style.setProperty("--card-accent", g.color);
-    const rewardLabel = String(g.reward).includes("–") || g.reward === "🪙"
+    const rewardLabel = String(g.reward).includes("–") || String(g.reward).includes("/") || g.reward === "🪙"
       ? `${g.reward} ✨`
       : `+${g.reward} ✨`;
     card.innerHTML = `
@@ -79,4 +79,9 @@
   });
 
   document.getElementById("libraryBackBtn")?.addEventListener("click", goLibrary);
+
+  const directGame = new URLSearchParams(window.location.search).get("game");
+  if (directGame && GAMES.some((g) => g.id === directGame)) {
+    setTimeout(() => openGame(directGame), 0);
+  }
 })();

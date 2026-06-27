@@ -28,7 +28,7 @@
     indycat: 12,
     blocks: 14,
     royal: 16,
-    zodiac_tapper: 1000,
+    zodiac_tapper: 1,
   };
 
   let balance = START_BALANCE;
@@ -123,13 +123,21 @@
       if (game === "mario") {
         const coins = extra.coins ?? score ?? 0;
         auraPts = Math.floor(coins / (window.MARIO_AURA_RATIO || 100));
+      } else if (game === "zodiac_tapper") {
+        auraPts = Math.max(0, score | 0);
       } else if (won) {
         auraPts = rewardForKind(kind, game);
       } else {
         auraPts = 0;
       }
     }
-    if (won && auraPts > 0) earn(auraPts, kind);
+    const previousScore = game === "zodiac_tapper" && window.lastResult?.game === "zodiac_tapper"
+      ? Math.max(0, window.lastResult.score | 0)
+      : 0;
+    const clientEarned = game === "zodiac_tapper"
+      ? Math.max(0, (score | 0) - previousScore)
+      : auraPts;
+    if (won && clientEarned > 0) earn(clientEarned, kind);
 
     const payload = {
       game,
