@@ -1362,6 +1362,81 @@ body.zodiac-tapper-mode #miniGameControls {
   display: none !important;
 }
 
+.zodiac-rules-btn {
+  position: absolute;
+  right: 12px;
+  top: 12px;
+  z-index: 6;
+  padding: 6px 10px;
+  border: 1px solid rgba(255, 210, 80, 0.55);
+  border-radius: 999px;
+  background: rgba(20, 12, 42, 0.72);
+  color: #fff8bd;
+  font-size: 0.72rem;
+  font-weight: 800;
+  box-shadow: 0 0 18px rgba(255, 210, 80, 0.2);
+  backdrop-filter: blur(8px);
+  touch-action: manipulation;
+}
+
+.zodiac-rules-btn[hidden] {
+  display: none;
+}
+
+.zodiac-rules-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 120;
+  display: grid;
+  place-items: center;
+  padding: 18px;
+  background: rgba(6, 3, 18, 0.78);
+  backdrop-filter: blur(8px);
+}
+
+.zodiac-rules-modal[hidden] {
+  display: none;
+}
+
+.zodiac-rules-card {
+  position: relative;
+  width: min(94vw, 390px);
+  padding: 20px 18px 18px;
+  border: 1px solid rgba(255, 210, 80, 0.38);
+  border-radius: 22px;
+  background: linear-gradient(160deg, rgba(24, 16, 54, 0.98), rgba(54, 32, 98, 0.96));
+  box-shadow: 0 22px 60px rgba(0, 0, 0, 0.55), 0 0 35px rgba(255, 210, 80, 0.14);
+}
+
+.zodiac-rules-card h3 {
+  margin: 0 32px 12px 0;
+  color: var(--gold);
+  font-size: 1.02rem;
+}
+
+.zodiac-rules-card ul {
+  display: grid;
+  gap: 8px;
+  padding-left: 18px;
+  color: #f6efff;
+  font-size: 0.82rem;
+  line-height: 1.35;
+}
+
+.zodiac-rules-close {
+  position: absolute;
+  right: 12px;
+  top: 10px;
+  width: 30px;
+  height: 30px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+  font-size: 1.25rem;
+  line-height: 1;
+}
+
 .zodiac-stats {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
