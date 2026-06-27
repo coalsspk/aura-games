@@ -8,9 +8,9 @@
   <meta http-equiv="Pragma" content="no-cache" />
   <meta http-equiv="Expires" content="0" />
   <title>Aura Games</title>
-  <script>window.ARCADE_BUILD="20260627-zodiac-endless-2";</script>
+  <script>window.ARCADE_BUILD="20260627-zodiac-stats-1";</script>
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
-  <link rel="stylesheet" href="style.css?v=20260627-zodiac-endless-2" />
+  <link rel="stylesheet" href="style.css?v=20260627-zodiac-stats-1" />
 </head>
 <body>
   <div id="particles" class="particles" aria-hidden="true"></div>
@@ -77,6 +77,11 @@
         <button type="button" class="minigame-pad" data-mini-action="left" aria-label="Влево">◀</button>
         <button type="button" class="minigame-pad minigame-pad-main" data-mini-action="action" aria-label="Действие">⬆</button>
         <button type="button" class="minigame-pad" data-mini-action="right" aria-label="Вправо">▶</button>
+      </div>
+      <div id="zodiacStats" class="zodiac-stats" hidden>
+        <span id="zodiacTotalHits">0 ✨</span>
+        <span id="zodiacRubles">0 ₽</span>
+        <span id="zodiacSessionHits">+0 за сессию</span>
       </div>
       <p class="hint">Победа → ✨ в кошелёк → «Отправить в бот»</p>
     </section>
@@ -236,13 +241,13 @@
     <p class="hint small">Очки ауры ✨ — единая валюта · дневной лимит проверяется ботом</p>
   </footer>
 
-  <script src="engine.js?v=20260627-zodiac-endless-2"></script>
-  <script src="economy.js?v=20260627-zodiac-endless-2"></script>
-  <script src="app.js?v=20260627-zodiac-endless-2"></script>
-  <script src="library.js?v=20260627-zodiac-endless-2"></script>
-  <script src="mini-games.js?v=20260627-zodiac-endless-2"></script>
-  <script src="mario.js?v=20260627-zodiac-endless-2"></script>
-  <script src="poker.js?v=20260627-zodiac-endless-2"></script>
-  <script src="tanks.js?v=20260627-zodiac-endless-2"></script>
+  <script src="engine.js?v=20260627-zodiac-stats-1"></script>
+  <script src="economy.js?v=20260627-zodiac-stats-1"></script>
+  <script src="app.js?v=20260627-zodiac-stats-1"></script>
+  <script src="library.js?v=20260627-zodiac-stats-1"></script>
+  <script src="mini-games.js?v=20260627-zodiac-stats-1"></script>
+  <script src="mario.js?v=20260627-zodiac-stats-1"></script>
+  <script src="poker.js?v=20260627-zodiac-stats-1"></script>
+  <script src="tanks.js?v=20260627-zodiac-stats-1"></script>
 </body>
 </html>
