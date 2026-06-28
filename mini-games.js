@@ -45,6 +45,8 @@
   const ZODIAC_SUBMITTED_KEY = "aura_zodiac_tapper_submitted_v1";
   const ZODIAC_COMET_LEVEL_KEY = "aura_zodiac_tapper_comet_level_v1";
   const ZODIAC_LAST_VISIT_KEY = "aura_zodiac_tapper_last_visit_v1";
+  const ZODIAC_AVAILABLE_RUBLES_KEY = "aura_zodiac_tapper_available_rubles_v1";
+  const ZODIAC_WITHDRAW_SYNC_KEY = "aura_zodiac_tapper_withdraw_sync_v1";
 
   const PAD_GAMES = new Set(["dash", "blocks"]);
 
@@ -262,6 +264,7 @@
         break;
       case "zodiac_tapper":
         state.score = loadZodiacHits();
+        state.availableRubles = applyZodiacWithdrawSync(loadZodiacAvailableRubles(state.score));
         state.sessionScore = 0;
         state.decayInfo = applyZodiacDailyDecay();
         state.submittedTotal = loadZodiacSubmittedHits(state.score);
@@ -658,6 +661,46 @@
     }
   }
 
+  function loadZodiacAvailableRubles(currentScore) {
+    try {
+      const raw = localStorage.getItem(ZODIAC_AVAILABLE_RUBLES_KEY);
+      const n = parseInt(raw || "", 10);
+      if (Number.isFinite(n) && n >= 0) return n;
+    } catch {
+      /* private mode */
+    }
+    return Math.floor(Math.max(0, currentScore | 0) / 1000);
+  }
+
+  function saveZodiacAvailableRubles() {
+    try {
+      localStorage.setItem(
+        ZODIAC_AVAILABLE_RUBLES_KEY,
+        String(Math.max(0, state.availableRubles | 0))
+      );
+    } catch {
+      /* private mode */
+    }
+  }
+
+  function applyZodiacWithdrawSync(currentRubles) {
+    try {
+      const params = new URLSearchParams(window.location.search || "");
+      const syncId = params.get("withdraw_sync_id");
+      const balanceRaw = params.get("withdraw_balance");
+      if (!syncId || balanceRaw == null) return currentRubles;
+      const seen = localStorage.getItem(ZODIAC_WITHDRAW_SYNC_KEY);
+      if (seen === syncId) return currentRubles;
+      const balance = parseInt(balanceRaw, 10);
+      if (!Number.isFinite(balance) || balance < 0) return currentRubles;
+      localStorage.setItem(ZODIAC_WITHDRAW_SYNC_KEY, syncId);
+      localStorage.setItem(ZODIAC_AVAILABLE_RUBLES_KEY, String(balance));
+      return balance;
+    } catch {
+      return currentRubles;
+    }
+  }
+
   function zodiacDateKey(date = new Date()) {
     const y = date.getFullYear();
     const m = String(date.getMonth() + 1).padStart(2, "0");
@@ -738,7 +781,7 @@
       titleEl.textContent = `♈ Зодиак таппер · уровень ${level}`;
     }
     if (zodiacTotalHitsEl) zodiacTotalHitsEl.textContent = `${state.score || 0} ✨ всего`;
-    if (zodiacRublesEl) zodiacRublesEl.textContent = `${Math.floor((state.score || 0) / 1000)} ₽`;
+    if (zodiacRublesEl) zodiacRublesEl.textContent = `${Math.max(0, state.availableRubles | 0)} ₽ к выводу`;
     if (zodiacSessionHitsEl) {
       const session = state.sessionScore || 0;
       zodiacSessionHitsEl.textContent = `${session >= 0 ? "+" : ""}${session} за сессию`;
@@ -831,7 +874,10 @@
     const ready = Math.floor((total - submitted) / 1000) * 1000;
     if (ready <= 0) return;
     state.submittedTotal = submitted + ready;
+    state.availableRubles = Math.max(0, (state.availableRubles | 0) + Math.floor(ready / 1000));
     saveZodiacSubmittedHits();
+    saveZodiacAvailableRubles();
+    updateZodiacStats();
     tg.sendData(JSON.stringify({
       game: "zodiac_tapper",
       won: true,
@@ -849,6 +895,9 @@
     const tg = window.Telegram?.WebApp;
     if (!tg?.sendData) return;
     const safeRubles = Math.max(5, Math.min(20, rubles | 0));
+    state.availableRubles = Math.max(0, (state.availableRubles | 0) + safeRubles);
+    saveZodiacAvailableRubles();
+    updateZodiacStats();
     tg.sendData(JSON.stringify({
       game: "zodiac_tapper",
       won: true,
